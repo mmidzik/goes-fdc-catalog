@@ -4,9 +4,9 @@
   "stac_extensions": [
     "https://schemas.portolan-sdi.org/portolan/v0.1.1/schema.json"
   ],
-  "id": "example-catalog",
-  "title": "Example Catalog",
-  "description": "TODO(setup): one or two sentences saying what this catalog holds, who produced the data, and who it is for. A person and an agent both read this first.",
+  "id": "goes-abi",
+  "title": "GOES ABI (NOAA GOES-R)",
+  "description": "Virtual Zarr views over NOAA's GOES-R ABI netCDF files in the public noaa-goes* buckets. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data. The first collection is GOES-18 ABI-L2-FDCC, the CONUS Fire/Hot Spot Characterization product.",
   "links": [
     {
       "rel": "root",
@@ -27,12 +27,12 @@
     },
     {
       "rel": "vcs",
-      "href": "https://github.com/TODO(setup)",
+      "href": "https://github.com/mmidzik/goes-fdc-catalog",
       "title": "Source repository"
     },
     {
       "rel": "issues",
-      "href": "https://github.com/TODO(setup)/issues",
+      "href": "https://github.com/mmidzik/goes-fdc-catalog/issues",
       "title": "Issue tracker"
     }
   ]

@@ -1,32 +1,36 @@
-# Example Catalog
+# GOES ABI (NOAA GOES-R)
 
-TODO(setup): replace this file. It is the front door to the published catalog,
-the page people land on at the public base URL. It is not the same document as
-the README in the repository root, which is never published.
+Virtual Zarr views over NOAA's GOES-R Advanced Baseline Imager (ABI) files.
+The catalog holds references and metadata. The pixel data stays in NOAA's
+public `noaa-goes*` buckets.
 
 ## What is here
 
-TODO(setup): the datasets, in one paragraph. Say what each collection covers,
-the area and the time range, and what a reader can do with it.
+This catalog is a pilot and holds no published collection yet. The first
+collection is `abi-l2-fdcc` under `goes-18`: the ABI Level 2 Fire/Hot Spot
+Characterization product for CONUS, from GOES-18. It is one 1500 × 2500 grid
+per scan, about every 5 minutes. The pilot window is the Palisades fire, 2025-01-07
+to 2025-01-31. The catalog later grows to the full GOES-18 record and to other
+satellites, sectors, and products.
+
+The Zarr assets are outside the Portolan conformance surface. The Portolan
+specification defers Zarr support until real Zarr datasets have been tested in
+catalogs ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
+This catalog is one of those test cases.
 
 ## License
 
-TODO(setup): the SPDX identifier, or `other` with a link to the terms. Say who
-holds the rights and what a reuser has to attribute.
+Not yet decided. NOAA publishes the source data. A license value for the
+catalog is an open question in the
+[design document](https://github.com/mmidzik/goes-fdc-catalog/blob/main/docs/rfd/0001-goes-fdc-virtual-zarr.md).
 
 ## Provenance
 
-TODO(setup): where the data came from. Say whether this catalog is the official
-publication from the producing organization, or a mirror of someone else's data.
-If it is a mirror, link the upstream and say how often it syncs.
+NOAA and NESDIS produce the data and remain the authoritative source. This
+catalog is a mirror. Upstream: <https://registry.opendata.aws/noaa-goes/>. No
+sync runs yet.
 
 ## Access
 
-TODO(setup): one query someone can run without downloading anything, against a
-real published file. Run it before you paste it.
-
-```sql
--- Example shape. Replace the URL and the columns with your own.
-INSTALL spatial; LOAD spatial; INSTALL httpfs; LOAD httpfs;
-SELECT count(*) FROM 'https://example.invalid/prefix/collection/data.parquet';
-```
+No collection is published yet, so there is no query to run. The first
+published collection adds one here, run against the published store.

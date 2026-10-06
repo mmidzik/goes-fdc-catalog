@@ -1,0 +1,36 @@
+[project]
+name = "goes-fdc-catalog"
+version = "0.0.0"
+description = "Pipeline that builds the GOES ABI FDC virtual Zarr Portolan catalog"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+dependencies = [
+    "virtualizarr[hdf]",
+    "icechunk",
+    "obstore",
+    "xarray",
+    "h5netcdf",
+    "kerchunk",
+    "fastparquet",
+]
+
+[project.scripts]
+goes-fdc = "goes_fdc.cli:main"
+
+[dependency-groups]
+dev = [
+    "rashid>=0.1.5,<0.2.0",
+    "stac-check",
+    "pyflakes",
+    "pytest",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["pipeline/src/goes_fdc"]
+
+[tool.pytest.ini_options]
+testpaths = ["pipeline/tests"]

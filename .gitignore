@@ -33,3 +33,7 @@ __pycache__/
 *.pyc
 .venv/
 .ruff_cache/
+
+# Local pipeline output (Icechunk repo, Kerchunk refs, raw netCDF samples)
+local/
+pipeline/scratch/
