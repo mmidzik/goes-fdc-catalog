@@ -66,6 +66,13 @@ PUBLISHABLE_SUFFIXES = {
 }
 
 
+# Directory names whose whole subtree uploads, whatever the file suffix. An
+# Icechunk repository is a tree of files with no suffix (`refs/`, `snapshots/`,
+# `manifests/`, `chunks/`). It is useless with any of them missing. A component
+# name is exact, so a directory called `icechunk-scratch` stays barred.
+PUBLISHABLE_TREES = {"icechunk", "kerchunk"}
+
+
 def data_root(config: dict[str, str], root: Path = ROOT) -> Path:
     """The staging directory this script walks.
 
@@ -94,9 +101,13 @@ def is_data_publishable(rel: Path) -> bool:
 
     The path gate runs in ``collect_data_uploads``. This is the second gate.
     It applies the dotfile rule of ``publish.py`` and then the suffix
-    allow-list.
+    allow-list. A file under a directory named in PUBLISHABLE_TREES passes
+    the second check by its path.
     """
-    return is_publishable(rel) and rel.suffix.lower() in PUBLISHABLE_SUFFIXES
+    if not is_publishable(rel):
+        return False
+    in_tree = any(part in PUBLISHABLE_TREES for part in rel.parts[:-1])
+    return in_tree or rel.suffix.lower() in PUBLISHABLE_SUFFIXES
 
 
 def collect_data_uploads(
@@ -161,6 +172,7 @@ def main() -> int:
     print(f"target:      s3://{bucket}/{prefix}")
     print(f"aws profile: {config.get('profile') or '(default session)'}")
     print(f"suffixes:    {', '.join(sorted(PUBLISHABLE_SUFFIXES))}")
+    print(f"trees:       {', '.join(sorted(PUBLISHABLE_TREES))}")
     print(f"{len(uploads)} file(s) staged, {len(changed)} to upload")
     print("this never deletes; removing a file here does not unpublish it")
 

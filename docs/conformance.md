@@ -34,7 +34,11 @@ something.
 
 ## Accepted deviations
 
-None.
+None. `tests/test_conformance.py` runs with `--no-data`, so it does not read the
+Zarr assets. As of 2026-10-06, `rashid check catalog --schema` reports 0 errors on
+the initial `abi-l2-fdcc` collection. Its warnings are not gate failures. They
+name a missing `file:checksum` and `file:size` on the `icechunk` asset, which is
+a directory and has no single checksum.
 
 <!--
 When you accept one, add a row and a section explaining it, like this:

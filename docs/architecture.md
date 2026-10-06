@@ -215,3 +215,18 @@ Measured on 2026-10-06 against `noaa-goes18`, with VirtualiZarr 2.7.3, Icechunk 
 Gaps:
 - The Kerchunk export covers one batch per run. A single parquet for the whole cube needs either a re-virtualization of everything or a way to derive references from the Icechunk store. Settle this before stage 2.
 - Not yet checked: the `proj` convention with a geostationary CRS (question 2), `https` as the virtual chunk container (answered yes for reading: the pipeline reads NOAA over `https`), and what the Portolan validator does with a Zarr asset (question 4).
+
+### Initial smoke-test catalog (2026-10-06)
+
+Built from the 24-scan store, with `goes_fdc.collection` writing the metadata from the store itself.
+
+- **Staged size.** 30 files, 1.4 MB: Icechunk repo 248 KB (manifests 156 KB), Kerchunk JSON 1.2 MB. The catalog metadata is 56 KB.
+- **Kerchunk JSON does not scale.** 1.2 MB for 24 scans is about 51 KB per scan. Kerchunk parquet was about 4 KB per scan. The initial catalog uses JSON because the cube is tiny and parquet needs a `.zmetadata` dotfile, which the template's upload gate bars. The full catalog needs parquet.
+- **Readers.** `icechunk.http_storage(<https url>)` opens the repo over plain HTTP with Range requests. The NOAA prefix still needs `VirtualChunkContainer(https://noaa-goes18.s3.amazonaws.com/, http_store())` and `Credentials.HttpAccess()`.
+- **Kerchunk reader.** `xr.open_dataset(refs_url, engine="kerchunk", storage_options={"remote_protocol": "https"})` works and returns the same `Power` array as Icechunk. The `zarr` engine with `reference://` fails: "Reference-FS's target filesystem must have same value of asynchronous". Needs `kerchunk`, `fsspec`, `aiohttp`, `requests`.
+- **Upload gate.** The template's suffix allow-list bars Icechunk's suffixless files. `tools/upload_data.py` now also admits any file under a directory named `icechunk` or `kerchunk`.
+- **Validation.** `rashid check catalog --schema`: 0 errors. Warnings: no `file:checksum` or `file:size` on the `icechunk` asset (a directory has no single checksum). Info: no `canonical` link, because NOAA publishes no STAC for FDC. The `--data` pass reported the Kerchunk asset unreadable (404) because the provisional URL is not uploaded yet.
+- **Registry pin.** Portolan pins the render extension at v2.0.0, so the collection declares v2.0.0 and not v2.1.0.
+- **Thumbnail.** The spec requires one for geospatial collections. It is a 7 KB PNG in `catalog/`, rendered from the store.
+
+Storage estimate for the Palisades window (about 7,200 scans), extrapolated from the 24-scan measurements and not yet measured at scale: Icechunk about 47 to 72 MB (6.5 to 10 KB per scan, and manifest growth under many appends is unverified), Kerchunk parquet about 30 MB, Kerchunk JSON about 365 MB. The raw netCDF would be about 1.6 GB (226 KB per scan) and is never downloaded or copied. The build reads headers only.

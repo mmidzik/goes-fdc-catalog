@@ -32,4 +32,4 @@ publish_dir: catalog
 # Data files are too large for git, so keep this directory out of the
 # repository or ignored by it. Only the suffixes in PUBLISHABLE_SUFFIXES
 # upload. See the allow-list in tools/upload_data.py.
-# data_dir: ../catalog-staging
+data_dir: staging/goes/data

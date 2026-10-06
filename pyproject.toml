@@ -12,6 +12,7 @@ dependencies = [
     "h5netcdf",
     "kerchunk",
     "fastparquet",
+    "pyproj>=3.8.0",
 ]
 
 [project.scripts]
@@ -23,6 +24,9 @@ dev = [
     "stac-check",
     "pyflakes",
     "pytest",
+]
+viz = [
+    "matplotlib>=3.11.2",
 ]
 
 [build-system]

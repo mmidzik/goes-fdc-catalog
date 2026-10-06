@@ -1,0 +1,269 @@
+{
+  "type": "Collection",
+  "stac_version": "1.1.0",
+  "stac_extensions": [
+    "https://schemas.portolan-sdi.org/portolan/v0.1.1/schema.json",
+    "https://stac-extensions.github.io/zarr/v1.1.0/schema.json",
+    "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
+    "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
+    "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
+    "https://stac-extensions.github.io/render/v2.0.0/schema.json",
+    "https://stac-extensions.github.io/file/v2.1.0/schema.json"
+  ],
+  "id": "abi-l2-fdcc",
+  "title": "GOES-18 ABI L2 Fire/Hot Spot Characterization, CONUS (virtual Zarr)",
+  "description": "Fire mask, fire radiative power, temperature, area and data quality for the GOES-18 CONUS scene, about every 5 minutes, as a virtual Zarr cube. The cube holds byte-range references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is copied. NOAA produces the data. This collection is a mirror.",
+  "license": "other",
+  "keywords": [
+    "GOES-18",
+    "ABI",
+    "fire",
+    "FDC",
+    "geostationary",
+    "Zarr"
+  ],
+  "providers": [
+    {
+      "name": "NOAA NESDIS",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.goes-r.gov/"
+    },
+    {
+      "name": "mmidzik (personal repository)",
+      "roles": [
+        "host",
+        "processor"
+      ],
+      "url": "https://github.com/mmidzik/goes-fdc-catalog/issues"
+    }
+  ],
+  "extent": {
+    "spatial": {
+      "bbox": [
+        [
+          175.62358,
+          14.57134,
+          -89.62357,
+          53.50006
+        ]
+      ]
+    },
+    "temporal": {
+      "interval": [
+        [
+          "2025-01-07T18:02:35Z",
+          "2025-01-07T19:57:35Z"
+        ]
+      ]
+    }
+  },
+  "summaries": {
+    "platform": [
+      "GOES-18"
+    ],
+    "instruments": [
+      "ABI"
+    ],
+    "gsd": [
+      2000
+    ]
+  },
+  "updated": "2026-10-06T22:35:39Z",
+  "cube:dimensions": {
+    "time": {
+      "type": "temporal",
+      "extent": [
+        "2025-01-07T18:02:35Z",
+        "2025-01-07T19:57:35Z"
+      ]
+    },
+    "y": {
+      "type": "spatial",
+      "axis": "y",
+      "extent": [
+        0.0,
+        1499.0
+      ],
+      "unit": "rad",
+      "reference_system": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]"
+    },
+    "x": {
+      "type": "spatial",
+      "axis": "x",
+      "extent": [
+        0.0,
+        2499.0
+      ],
+      "unit": "rad",
+      "reference_system": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]"
+    }
+  },
+  "cube:variables": {
+    "Mask": {
+      "type": "data",
+      "dimensions": [
+        "time",
+        "y",
+        "x"
+      ],
+      "unit": "1",
+      "description": "Fire mask: fire, non-fire and obstructed-view categories."
+    },
+    "DQF": {
+      "type": "data",
+      "dimensions": [
+        "time",
+        "y",
+        "x"
+      ],
+      "unit": "1",
+      "description": "Data quality flag."
+    },
+    "Power": {
+      "type": "data",
+      "dimensions": [
+        "time",
+        "y",
+        "x"
+      ],
+      "unit": "MW",
+      "description": "Fire radiative power."
+    },
+    "Temp": {
+      "type": "data",
+      "dimensions": [
+        "time",
+        "y",
+        "x"
+      ],
+      "unit": "K",
+      "description": "Fire temperature (scaled integer; scale_factor and add_offset are on the array)."
+    },
+    "Area": {
+      "type": "data",
+      "dimensions": [
+        "time",
+        "y",
+        "x"
+      ],
+      "unit": "m2",
+      "description": "Fire area (scaled integer; scale_factor and add_offset are on the array)."
+    }
+  },
+  "renders": {
+    "frp": {
+      "title": "Fire radiative power (MW)",
+      "assets": [
+        "icechunk"
+      ],
+      "rescale": [
+        [
+          0,
+          200
+        ]
+      ],
+      "colormap_name": "inferno",
+      "nodata": -9
+    }
+  },
+  "assets": {
+    "icechunk": {
+      "href": "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk/",
+      "type": "application/vnd+zarr",
+      "title": "Virtual Zarr cube (Icechunk repository)",
+      "description": "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. Open it with icechunk and xarray, and authorize the NOAA https prefix as a virtual chunk container. See README.md.",
+      "roles": [
+        "data"
+      ],
+      "zarr:zarr_format": 3,
+      "zarr:node_type": "group",
+      "zarr:consolidated": false,
+      "xarray:open_kwargs": {
+        "engine": "zarr",
+        "consolidated": false
+      },
+      "proj:code": null,
+      "proj:wkt2": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+      "proj:shape": [
+        1500,
+        2500
+      ]
+    },
+    "kerchunk": {
+      "href": "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
+      "type": "application/json",
+      "title": "Virtual Zarr cube (Kerchunk references)",
+      "description": "Kerchunk reference file for the same cube. Open it with xarray's kerchunk engine, with no Icechunk dependency. Needs kerchunk, fsspec, aiohttp and requests. See README.md.",
+      "roles": [
+        "data"
+      ],
+      "zarr:zarr_format": 2,
+      "zarr:node_type": "group",
+      "xarray:open_kwargs": {
+        "engine": "kerchunk"
+      },
+      "xarray:storage_options": {
+        "remote_protocol": "https"
+      },
+      "file:checksum": "12201338bbdf5c999a3bee77b1bed43be0cc01253d6d4283e7fac4a442180d4409b5",
+      "file:size": 1245601,
+      "proj:code": null,
+      "proj:wkt2": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
+      "proj:shape": [
+        1500,
+        2500
+      ]
+    },
+    "thumbnail": {
+      "href": "./thumbnail.png",
+      "type": "image/png",
+      "title": "Fire radiative power, GOES-18 CONUS",
+      "roles": [
+        "thumbnail"
+      ],
+      "file:checksum": "1220c29aea12873b6bbc274cbd4a3b7cfcd2311b8718b6950f33bc0c3903ca622835",
+      "file:size": 11487
+    }
+  },
+  "links": [
+    {
+      "rel": "root",
+      "href": "../../catalog.json",
+      "type": "application/json",
+      "title": "GOES ABI (NOAA GOES-R)"
+    },
+    {
+      "rel": "parent",
+      "href": "../catalog.json",
+      "type": "application/json",
+      "title": "GOES-18"
+    },
+    {
+      "rel": "describedby",
+      "href": "./README.md",
+      "type": "text/markdown",
+      "title": "Collection README"
+    },
+    {
+      "rel": "agents",
+      "href": "./AGENTS.md",
+      "type": "text/markdown",
+      "title": "Collection agent guide"
+    },
+    {
+      "rel": "via",
+      "href": "https://registry.opendata.aws/noaa-goes/",
+      "type": "text/html",
+      "title": "NOAA GOES on the AWS Registry of Open Data"
+    },
+    {
+      "rel": "license",
+      "href": "https://www.nesdisia.noaa.gov/policy.html",
+      "type": "text/html",
+      "title": "NOAA NESDIS data policy"
+    }
+  ]
+}

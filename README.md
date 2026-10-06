@@ -31,6 +31,40 @@ AGENTS.md (what the data is, how to read it, the traps) arrive with the first
 collection, under `catalog/goes-18/abi-l2-fdcc/`. Everything below is about how
 this repository builds that catalog.
 
+## The GOES data today
+
+GOES-R ABI data is public but not cloud-optimized. Level 2 FDC is netCDF4 on the
+ABI fixed grid, one file per scan, with no STAC and no COG or Zarr form from
+NOAA.
+
+| Satellite | Role | In `noaa-goes*` (FDCC) |
+|---|---|---|
+| GOES-16 | GOES-East until 2025-04-07, storage since | 2017/144 to 2025/097 |
+| GOES-17 | GOES-West until 2023-01-04, storage since | 2018/239 to 2023/010 |
+| GOES-18 | GOES-West since 2023-01-04 | 2022/131 to 2026/279 |
+| GOES-19 | GOES-East since 2025-04-07 | 2024/291 to 2026/279 |
+
+The bucket ranges are year and day of year, measured on 2026-10-06. The roles
+come from the [NOAA OSPO status page](https://www.ospo.noaa.gov/operations/goes/status.html).
+FDCF (full disk) and FDCM (mesoscale) have the same end dates as FDCC. FDCM
+starts later on GOES-16 and GOES-17 (2021/137).
+
+Where the data lives:
+
+| Where | What | Access | Notes |
+|---|---|---|---|
+| AWS S3 `noaa-goes{16,17,18,19}` | All ABI products, netCDF4 | Anonymous, no account. SNS topic `NewGOES{N}Object` announces new files | Keys are `<product>/<YYYY>/<DDD>/<HH>/<file>`. Range requests and CORS work over `https`. **This catalog reads from here.** |
+| Google Cloud `gcp-public-data-goes-{16..19}` | Same files | Anonymous | Mirror of the AWS layout |
+| Microsoft Planetary Computer | STAC `goes-cmi` (cloud and moisture imagery as COGs) and `goes-glm` | STAC API | FDC is not a STAC collection there. The STAC API lists only `goes-cmi` and `goes-glm` (checked 2026-10-06) |
+| Azure `noaa-goes-cogs` (behind Planetary Computer) | FDC as COGs, one file per variable per scan (`Area`, `DQF`, `Mask`, `Power`, `Temp`) | Needs a Planetary Computer SAS token. Anonymous requests return 404 | Partial: GOES-16 2017 to 2021 and part of 2023, GOES-17 2018 to 2021, GOES-18 only 8 days in 2023, GOES-19 none. Not usable as a public source |
+| Google Earth Engine | `NOAA/GOES/{16..19}/FDCF` and `FDCC`, plus `MCMIPF` | Earth Engine account | Raster only |
+| NOAA CLASS and NCEI | Long-term archive | Free account | Order-based, not cloud-native |
+| SSEC NGFS | Terrain-corrected fire-pixel CSV, GeoJSON and KML from ABI scans | <https://bin.ssec.wisc.edu/pub/volcat/fire_csv/> | Experimental. About 6 days stay online |
+| NASA FIRMS | Provisional ABI active-fire detections for the US and Canada from GOES-16 and GOES-18, on the web map | Map only | The FIRMS area API lists no GOES source |
+
+No full-archive vector (point or polygon) form of GOES FDC exists in any of
+these. That is why this catalog keeps the raster grid and virtualizes it.
+
 ## What it will publish
 
 One collection to start, `goes-18/abi-l2-fdcc`: the CONUS FDC product from
@@ -47,10 +81,34 @@ The cube is published two ways, from the same references:
 | Asset | Reader needs | Notes |
 |---|---|---|
 | Icechunk repo | `icechunk`, `zarr`, `xarray` | Transactional, appendable, detects a changed NOAA file |
-| Kerchunk parquet | `fsspec`, `xarray` | No Icechunk dependency |
+| Kerchunk references | `xarray`, `kerchunk`, `fsspec`, `aiohttp`, `requests` | No Icechunk dependency. JSON in the initial smoke-test catalog. Parquet for the full catalog, since JSON is about 50 KB per scan |
 
 Both hold manifests, never pixels. Every read fetches chunk byte ranges from
 NOAA.
+
+### Why these assets are not plain Zarr stores
+
+The cube uses the Zarr data model throughout: Zarr v3 arrays, groups, 250 × 250
+chunks and gzip with shuffle, read with `zarr` and `xarray`. VirtualiZarr
+builds it. It reads each NOAA netCDF header and produces chunk references (file,
+offset, length). It then writes them out as Icechunk (`to_icechunk`) or Kerchunk
+(`to_kerchunk`). Those are its two persistence formats.
+
+A plain Zarr directory (`zarr.json` plus chunk files) cannot hold a reference.
+Zarr has no way to say "this chunk is bytes 1,000 to 3,000 of another file", so
+every chunk in a plain store is real bytes. For this data that is a copy of about
+the raw size, roughly 1.6 GB for the Palisades window, plus a pipeline that
+decodes and re-encodes NOAA's chunks. That contradicts the goal of never copying
+the data.
+
+The trade-off: the `icechunk` asset is an Icechunk repository (`repo`,
+`snapshots/`, `manifests/`, `chunks/`, `transactions/`). A generic Zarr client
+that does not know Icechunk cannot open it by URL. The `kerchunk` asset is a
+reference file that opens through fsspec's reference filesystem. Whether Portolan's
+Zarr profile should recognize virtual stores as their own asset kind is a
+question for
+[portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132).
+This catalog is a test case for it.
 
 ## Design decisions worth knowing
 
@@ -107,6 +165,17 @@ needs no credentials. A full backfill of GOES-18 FDCC since 2023-01-04 is about
 Python dependencies use [uv](https://docs.astral.sh/uv/). It creates `.venv` and
 installs the locked versions.
 
+Build the initial smoke-test catalog from a store, then stage and upload it:
+
+```bash
+uv run python -m goes_fdc.collection --store local/smoke/icechunk \
+    --public-base https://data.source.coop/portolan-mirrors/goes-fdc-catalog
+uv run --group viz python -m goes_fdc.thumbnail --store local/smoke/icechunk \
+    --out catalog/goes-18/abi-l2-fdcc/thumbnail.png
+uv run python tools/publish.py          # dry run: catalog metadata
+uv run python tools/upload_data.py      # dry run: staged Icechunk and Kerchunk
+```
+
 ```bash
 uv sync
 uv run pytest                          # unit tests, no network
@@ -123,12 +192,19 @@ Data files never enter git. `.gitignore` blocks the common formats, plus
 Done:
 - Local pipeline over the NOAA buckets, tested on 24 scans (2025-01-07 18:00 to
   20:00 UTC): append, dedupe, and a read-back that matches the raw netCDF.
-- Catalog gates pass on the root catalog.
+- Initial smoke-test catalog built from those 24 scans: root, `goes-18`, and the
+  `abi-l2-fdcc` collection with Icechunk and Kerchunk assets, thumbnail, README
+  and AGENTS.md at each level. All gates pass and `rashid check --schema` reports
+  0 errors. Staged for upload under `staging/goes/data/` (about 1.4 MB).
+- Both access recipes tested against a local copy served over HTTP with Range
+  support, with NOAA read live.
 
 TODO:
 - **Publish to Source Cooperative.** Confirm the account, product name, and write
   endpoint, then fill in the links at the top of this file. The path in
-  `catalog.publish.yaml` is a guess based on the FIRMS mirror.
+  `catalog.publish.yaml` is a guess based on the FIRMS mirror. After the upload,
+  run `rashid check catalog --schema --data --live --live-base-url <public base>`
+  and re-test the access recipes against the real URLs.
 - Build the Palisades window and check the FRP curve against the published
   figure.
 - Write the `goes-18/abi-l2-fdcc` collection, validate it, and record accepted

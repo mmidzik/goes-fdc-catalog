@@ -25,6 +25,7 @@ sys.path.insert(0, str(ROOT / "tools"))
 import upload_data  # noqa: E402
 from upload_data import (  # noqa: E402
     PUBLISHABLE_SUFFIXES,
+    PUBLISHABLE_TREES,
     collect_data_uploads,
     data_root,
     is_data_publishable,
@@ -67,6 +68,16 @@ check(not is_data_publishable(Path("a/scratch.geojson")), "geojson is barred")
 check(not is_data_publishable(Path("a/notes.md")), "markdown is barred")
 check(not is_data_publishable(Path("a/roads.parquet.tmp")), "tmp is barred")
 check(not is_data_publishable(Path("a/.hidden/x.parquet")), "dotdir is barred")
+
+# --- whole trees: Icechunk and Kerchunk -------------------------------
+check(PUBLISHABLE_TREES == {"icechunk", "kerchunk"}, "the tree allow-list is exact")
+check(is_data_publishable(Path("c/icechunk/snapshots/ABC123")), "icechunk snapshot passes")
+check(is_data_publishable(Path("c/icechunk/refs/branch.main/ref.json")), "icechunk ref passes")
+check(is_data_publishable(Path("c/kerchunk/refs.json")), "kerchunk refs pass")
+check(not is_data_publishable(Path("c/icechunk-scratch/x")), "similar dir name is barred")
+check(not is_data_publishable(Path("c/icechunk")), "a bare file named icechunk is barred")
+check(not is_data_publishable(Path("c/icechunk/.hidden/x")), "dotdir inside a tree is barred")
+check(not is_data_publishable(Path("c/other/snapshots/ABC123")), "suffixless file outside a tree is barred")
 
 # --- the path gate and the walk ----------------------------------------
 with tempfile.TemporaryDirectory() as tmp:
@@ -150,16 +161,22 @@ with tempfile.TemporaryDirectory() as tmp:
         "a data_dir that does not exist says so",
     )
 
-# --- the unedited template exits cleanly -------------------------------
-# The shipped catalog.publish.yaml sets no data_dir, so main() must report
-# that instead of raising a traceback.
-argv = sys.argv
+# --- a config with no data_dir exits cleanly ----------------------------
+# main() must report a missing data_dir instead of raising a traceback. The
+# config is built here so the check does not depend on this repository's own
+# catalog.publish.yaml, which sets data_dir.
+argv, real_load = sys.argv, upload_data.load_config
 sys.argv = ["upload_data.py"]
+upload_data.load_config = lambda *a, **k: {
+    "write_prefix": "s3://a-bucket/a/prefix",
+    "public_base": "https://data.example.org/a/prefix",
+    "publish_dir": "catalog",
+}
 try:
     message = exit_message(upload_data.main)
 finally:
-    sys.argv = argv
-check("data_dir" in message, f"the template exits on data_dir: {message!r}")
+    sys.argv, upload_data.load_config = argv, real_load
+check("data_dir" in message, f"a config with no data_dir exits on it: {message!r}")
 
 # --- the sentinel guard ------------------------------------------------
 check(
