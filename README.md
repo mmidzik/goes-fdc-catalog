@@ -5,8 +5,9 @@ A [Portolan](https://github.com/portolan-sdi/portolan-spec) catalog mirroring
 **virtual Zarr cube**.
 
 Catalog metadata lives in this repository. The pixel data stays in NOAA's public
-`noaa-goes*` buckets, and the catalog holds byte-range references to it. CI
-validates every change to the metadata.
+`noaa-goes*` buckets on AWS S3, and the catalog holds byte-range references to
+it. The catalog relies on that S3 copy as its data source. CI validates every
+change to the metadata.
 
 > **Status: pilot. Publishing to Source Cooperative is TODO.** Nothing is
 > published. The storage path in `catalog.publish.yaml` is provisional, and no
@@ -48,6 +49,18 @@ The bucket ranges are year and day of year, measured on 2026-10-06. The roles
 come from the [NOAA OSPO status page](https://www.ospo.noaa.gov/operations/goes/status.html).
 FDCF (full disk) and FDCM (mesoscale) have the same end dates as FDCC. FDCM
 starts later on GOES-16 and GOES-17 (2021/137).
+
+The FDC cadence depends on the scan sector:
+
+| Product | Sector | Cadence |
+|---|---|---|
+| `ABI-L2-FDCF` | Full disk | About every 10 minutes |
+| `ABI-L2-FDCC` | CONUS or PACUS | About every 5 minutes |
+| `ABI-L2-FDCM` | Mesoscale (two sectors, M1 and M2) | About every 1 minute per sector. Observations arrive every 30 seconds if both sectors point at the same area |
+
+This catalog starts with GOES-18 `ABI-L2-FDCC`, so about 5 minutes between
+scans, or about 288 per day. In the 24-scan test the scans fell at 5-minute
+steps (18:02:35, 18:07:35, 18:12:35 and so on).
 
 Where the data lives:
 
@@ -96,6 +109,20 @@ question for
 This catalog is a test case for it.
 
 ## Design decisions worth knowing
+
+**We rely on the AWS S3 mirror.** Every pixel read is a Range request to
+`https://noaa-goes{16,17,18,19}.s3.amazonaws.com`, the NOAA copy listed in the
+[AWS Registry of Open Data](https://registry.opendata.aws/noaa-goes/). The
+catalog has no copy of its own, so it works only while those objects stay at
+those keys and keep their bytes. That has three consequences:
+- If NOAA or AWS moves or deletes a file, the reference breaks. The Icechunk repo
+  detects a changed file. The Kerchunk references do not, and can return wrong
+  bytes silently.
+- The GOES-16 and GOES-17 buckets stopped growing (2025/097 and 2023/010), so
+  their references are stable. GOES-18 and GOES-19 are live and grow every scan.
+- Other mirrors of the same files (Google Cloud, Earth Engine, NCEI) are not
+  used. Pointing the catalog at one of them means rebuilding the references,
+  because the byte-range URLs name the AWS host.
 
 **Virtual, not copied.** GOES FDC is a raster grid per scan with fire as a few
 classes among many, so a fire-pixel table would drop the cloud, clear, and
