@@ -1,6 +1,6 @@
 # goes-fdc-catalog
 
-A Portolan catalog of NOAA's GOES ABI Fire/Hot Spot Characterization as a virtual Zarr cube. The design is in `docs/rfd/0001-goes-fdc-virtual-zarr.md`. Read it before you change the pipeline or the catalog layout.
+A Portolan catalog of NOAA's GOES ABI Fire/Hot Spot Characterization as a virtual Zarr cube. The design is in `docs/architecture.md`. Read it before you change the pipeline or the catalog layout.
 
 ## Ground rules
 

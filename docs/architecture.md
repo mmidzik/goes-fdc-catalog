@@ -1,4 +1,4 @@
-# RFD: GOES ABI FDC as a virtual Zarr Portolan catalog
+# Architecture: GOES ABI FDC as a virtual Zarr Portolan catalog
 
 Status: accepted for stage 1. Pilot scope: GOES-18 `ABI-L2-FDCC`, Palisades fire window. Date: 2026-10-06.
 
@@ -163,7 +163,7 @@ Follows the provisional direction in #132:
 | 7 | NOAA reprocessing or file replacement | Icechunk detects changes. Define a re-sync rule |
 | 8 | Backfill cost is a guess | Measure on one day, then extrapolate |
 
-## 9. Later, not in this RFD
+## 9. Later, not in this document
 
 - On-request COG endpoint: a small stateless function renders one scan from the refs, CDN cached. Only if a raster-file consumer needs it.
 - Fire-pixel GeoParquet (FIRMS style) as the conformant vector view. No existing vector FDC archive was found. FIRMS shows GOES hotspots on its map but the area API lists no GOES source.
