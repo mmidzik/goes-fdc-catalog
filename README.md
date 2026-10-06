@@ -86,21 +86,6 @@ The cube is published two ways, from the same references:
 Both hold manifests, never pixels. Every read fetches chunk byte ranges from
 NOAA.
 
-### Why these assets are not plain Zarr stores
-
-The cube uses the Zarr data model throughout: Zarr v3 arrays, groups, 250 × 250
-chunks and gzip with shuffle, read with `zarr` and `xarray`. VirtualiZarr
-builds it. It reads each NOAA netCDF header and produces chunk references (file,
-offset, length). It then writes them out as Icechunk (`to_icechunk`) or Kerchunk
-(`to_kerchunk`). Those are its two persistence formats.
-
-A plain Zarr directory (`zarr.json` plus chunk files) cannot hold a reference.
-Zarr has no way to say "this chunk is bytes 1,000 to 3,000 of another file", so
-every chunk in a plain store is real bytes. For this data that is a copy of about
-the raw size, roughly 1.6 GB for the Palisades window, plus a pipeline that
-decodes and re-encodes NOAA's chunks. That contradicts the goal of never copying
-the data.
-
 The trade-off: the `icechunk` asset is an Icechunk repository (`repo`,
 `snapshots/`, `manifests/`, `chunks/`, `transactions/`). A generic Zarr client
 that does not know Icechunk cannot open it by URL. The `kerchunk` asset is a
