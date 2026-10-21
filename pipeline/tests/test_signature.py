@@ -31,3 +31,23 @@ def test_plain_makes_numpy_json_safe():
     assert _plain(np.float32(0.5)) == 0.5
     assert _plain(np.array([1, 2], dtype=np.int16)) == [1, 2]
     assert _plain(0.1234567891234) == 0.123456789
+
+
+def test_scan_time_falls_back_to_the_file_name_midpoint():
+    from datetime import datetime, timezone
+
+    from goes_fdc.keys import Scan
+    from goes_fdc.virtualize import scan_time
+
+    utc = timezone.utc
+    scan = Scan(
+        key="k", product="ABI-L2-FDCC", mode="M4", satellite="G18",
+        start=datetime(2025, 1, 20, 15, 10, 22, 400000, tzinfo=utc),
+        end=datetime(2025, 1, 20, 15, 15, 12, 400000, tzinfo=utc),
+        created=datetime(2025, 1, 20, 15, 17, tzinfo=utc),
+    )
+    good = np.datetime64("2025-01-20T15:12:47", "ns")
+    assert scan_time(scan, good) == good
+    assert scan_time(scan, None) == np.datetime64("2025-01-20T15:12:47.400", "ns")
+    bogus = np.datetime64("1999-12-31T11:43:21", "ns")  # t = -999 s, decoded
+    assert scan_time(scan, bogus) == np.datetime64("2025-01-20T15:12:47.400", "ns")

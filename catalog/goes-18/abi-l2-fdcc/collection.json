@@ -54,8 +54,8 @@
     "temporal": {
       "interval": [
         [
-          "2025-01-07T18:02:35Z",
-          "2025-01-07T19:57:35Z"
+          "2025-01-07T00:02:35Z",
+          "2025-01-20T23:57:35Z"
         ]
       ]
     }
@@ -71,13 +71,13 @@
       2000
     ]
   },
-  "updated": "2026-10-21T18:38:10Z",
+  "updated": "2026-10-21T19:55:01Z",
   "cube:dimensions": {
     "time": {
       "type": "temporal",
       "extent": [
-        "2025-01-07T18:02:35Z",
-        "2025-01-07T19:57:35Z"
+        "2025-01-07T00:02:35Z",
+        "2025-01-20T23:57:35Z"
       ]
     },
     "y": {
@@ -192,31 +192,6 @@
         2500
       ]
     },
-    "kerchunk": {
-      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
-      "type": "application/json",
-      "title": "Virtual Zarr cube (Kerchunk references)",
-      "description": "Kerchunk reference file for the same cube. Open it with xarray's kerchunk engine, with no Icechunk dependency. Needs kerchunk, fsspec, aiohttp and requests. See README.md.",
-      "roles": [
-        "data"
-      ],
-      "zarr:zarr_format": 2,
-      "zarr:node_type": "group",
-      "xarray:open_kwargs": {
-        "engine": "kerchunk"
-      },
-      "xarray:storage_options": {
-        "remote_protocol": "https"
-      },
-      "file:checksum": "12201338bbdf5c999a3bee77b1bed43be0cc01253d6d4283e7fac4a442180d4409b5",
-      "file:size": 1245601,
-      "proj:code": null,
-      "proj:wkt2": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
-      "proj:shape": [
-        1500,
-        2500
-      ]
-    },
     "thumbnail": {
       "href": "./thumbnail.png",
       "type": "image/png",
@@ -224,8 +199,8 @@
       "roles": [
         "thumbnail"
       ],
-      "file:checksum": "1220c29aea12873b6bbc274cbd4a3b7cfcd2311b8718b6950f33bc0c3903ca622835",
-      "file:size": 11487
+      "file:checksum": "1220f6934505d8384b882205d9842245e396f291823e5ceab3120915ca5c2313b4d3",
+      "file:size": 9571
     }
   },
   "links": [

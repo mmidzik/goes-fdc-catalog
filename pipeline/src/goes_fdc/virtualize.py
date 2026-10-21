@@ -87,14 +87,46 @@ def base_url(satellite: str) -> str:
     return f"https://{BUCKETS[satellite]}.s3.amazonaws.com"
 
 
+def midpoint(scan: Scan) -> np.datetime64:
+    """The middle of the scan, from the start and end stamps in the file name."""
+    mid = scan.start + (scan.end - scan.start) / 2
+    return np.datetime64(mid.replace(tzinfo=None), "ns")
+
+
+def scan_time(scan: Scan, t) -> np.datetime64:
+    """The file's mid-scan `t`, or the file-name midpoint when `t` is not usable.
+
+    Some files carry the fill value -999 in `t` and `time_bounds`, with valid
+    pixels. Two Mode 4 scans on 2025-01-20 (15:10 and 15:15 UTC) are examples.
+    A `t` outside the scan's own start and end stamps is treated the same way.
+    """
+    lo = np.datetime64(scan.start.replace(tzinfo=None), "ns") - np.timedelta64(1, "m")
+    hi = np.datetime64(scan.end.replace(tzinfo=None), "ns") + np.timedelta64(1, "m")
+    if t is not None and lo <= t <= hi:
+        return t
+    print(f"note: {scan.key}: t is not usable, using the file-name midpoint", flush=True)
+    return midpoint(scan)
+
+
 def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry) -> xr.Dataset:
     """Read headers only. The result holds byte-range references, no pixels."""
     url = f"{base_url(scan.satellite)}/{scan.key}"
-    ds = open_virtual_dataset(
-        url, registry=registry, parser=HDFParser(), loadable_variables=["t", "x", "y"]
-    )
+    try:
+        ds = open_virtual_dataset(
+            url, registry=registry, parser=HDFParser(), loadable_variables=["t", "x", "y"]
+        )
+        t = ds["t"].values
+    except ValueError as exc:
+        # A fill value in time_bounds stops CF time decoding for the whole file.
+        if "unable to decode time units" not in str(exc):
+            raise
+        ds = open_virtual_dataset(
+            url, registry=registry, parser=HDFParser(), loadable_variables=["t", "x", "y"],
+            decode_times=False,
+        )
+        t = None
+    t = scan_time(scan, t)
     sig = signature(ds)
-    t = ds["t"].values
     out = ds[VARIABLES].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
     out.attrs = {SIGNATURE_ATTR: json.dumps(sig, sort_keys=True)}
     return out

@@ -15,11 +15,27 @@ from .virtualize import SIGNATURE_ATTR, base_url, check_signature
 DEFAULT_STORE = Path("local/publish/goes-18/abi-l2-fdcc/icechunk")
 
 
+# Scans per manifest along `time`. Without splitting, every append rewrites the
+# whole manifest of each array, so the repository grows with the square of the
+# number of commits. Measured on the two-week build (14 daily commits): the last
+# snapshot needs 13.3 MB of manifests, and the repository held 100 MB. With a
+# split of one day of CONUS scans, a daily append writes only that day's
+# manifests, about 80 KB per 24 scans.
+SPLIT_SCANS = 288
+
+
 def repo_config(satellite: str) -> tuple[icechunk.RepositoryConfig, dict]:
     """NOAA buckets read anonymously over https, so the credential is the HttpAccess sentinel."""
     base = base_url(satellite) + "/"
     cfg = icechunk.RepositoryConfig.default()
     cfg.set_virtual_chunk_container(icechunk.VirtualChunkContainer(base, icechunk.http_store()))
+    cfg.manifest = icechunk.ManifestConfig(
+        splitting=icechunk.ManifestSplittingConfig.from_dict({
+            icechunk.ManifestSplitCondition.AnyArray(): {
+                icechunk.ManifestSplitDimCondition.DimensionName("time"): SPLIT_SCANS
+            }
+        })
+    )
     return cfg, icechunk.containers_credentials({base: icechunk.Credentials.HttpAccess()})
 
 

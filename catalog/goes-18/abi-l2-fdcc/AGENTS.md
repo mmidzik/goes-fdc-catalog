@@ -10,17 +10,18 @@ downstream catches it.
 
 ## What this collection holds
 
-A virtual Zarr cube over 24 GOES-18 CONUS Fire/Hot Spot Characterization scans,
-2025-01-07T18:02Z to 19:57Z (measured from the `time` coordinate). Dimensions
-`time` (24) × `y` (1500) × `x` (2500). Variables `Mask`, `DQF`, `Power`, `Temp`,
+A virtual Zarr cube over 3,996 GOES-18 CONUS Fire/Hot Spot Characterization
+scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z (measured from the `time`
+coordinate). Dimensions `time` (3996) × `y` (1500) × `x` (2500). The Icechunk tag
+`palisades-2025-01` pins this snapshot. Variables `Mask`, `DQF`, `Power`, `Temp`,
 `Area`. Public root, provisional:
 `https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/`.
 
 ## How to read it
 
-Two assets, `icechunk` and `kerchunk`, with working recipes in `README.md`. Both
-returned the same 24 scans and the same `Power` array when tested against a local
-HTTP copy. The Source Cooperative URLs are untested.
+One asset, `icechunk`, with a working recipe in `README.md`. All five variables
+of three sampled scans read back byte-identical to the raw netCDF from the local
+store. The Source Cooperative URL is untested.
 
 - Every pixel read is a Range request to
   `https://noaa-goes18.s3.amazonaws.com/ABI-L2-FDCC/...`. Opening the Icechunk
@@ -36,20 +37,24 @@ HTTP copy. The Source Cooperative URLs are untested.
   `scale_factor` 0.05493667, `add_offset` 400, so a decoded value is never below
   400 K.
 - **Fill values.** `Power` uses `-9` and `Mask` uses `-99`. A sum over `Power`
-  without `where(Power > 0)` includes them. Measured on the last scan: the sum
-  of positive `Power` is 5215.4 MW over the whole grid.
+  without `where(Power > 0)` includes them. Measured over the box 118.70 W to
+  118.45 W, 34.00 N to 34.15 N at 2025-01-08T07:12Z: the sum of positive
+  `Power` is 26,255 MW.
 - **Not latitude and longitude.** `x` and `y` are ABI scan angles in radians on
   the geostationary fixed grid (`grid_mapping` is `goes_imager_projection`). A
   point-in-box filter on lat/lon needs the projection first. The collection's
   `proj:wkt2` holds it.
 - **Time is mid-scan.** `time` comes from each file's `t` and falls between the
   start and end stamps in the filename, for example 19:57:35 for a scan that
-  starts 19:56:17.
+  starts 19:56:17. The files listed in `README.md` have `t` = `-999`. Their `time` is the file-name
+  midpoint instead.
+- **A gap.** No scans exist from 2025-01-16T11:57Z to 15:02Z. NOAA's bucket has
+  no files for those hours. A time series has no values there. A line plot
+  joins the two sides, which hides the gap.
 - **Scene extent.** The collection bbox is NOAA's `geospatial_lat_lon_extent`
   for this scene and crosses the antimeridian (west 175.6, east -89.6).
 - **Reprocessing.** The Icechunk repository checks that a NOAA file has not
-  changed. The Kerchunk references do not. If NOAA replaces a file, Kerchunk can
-  return wrong bytes silently.
+  changed since the reference was written.
 
 ## Structure
 

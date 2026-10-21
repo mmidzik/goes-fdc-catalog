@@ -5,29 +5,23 @@ flag for the GOES-18 CONUS scene. The collection is a **virtual Zarr cube**: it
 holds byte-range references into NOAA's `ABI-L2-FDCC` netCDF files in the public
 `noaa-goes18` bucket and copies no pixel data.
 
-> **Pilot.** This initial collection holds 24 scans, 2025-01-07T18:02Z to
-> 19:57Z, the first two hours of the Palisades fire. It is a test of the
-> Source Cooperative layout. The Zarr assets are outside the Portolan
-> conformance surface
+> **Demo.** This collection covers two weeks of scans over the Palisades fire,
+> 2025-01-07 to 2025-01-20 UTC. The same pipeline extends the cube in time. The
+> Zarr assets are outside the Portolan conformance surface
 > ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
 
 ## What is here
 
 | | |
 |---|---|
-| Scans | 24, time axis `time` (UTC, the file's mid-scan `t`) |
+| Scans | 3,996, 2025-01-07T00:02Z to 2025-01-20T23:57Z, time axis `time` (UTC, mid-scan) |
+| Snapshot | Icechunk tag `palisades-2025-01` |
 | Grid | 1500 × 2500, ABI geostationary fixed grid, 2 km at nadir |
 | Variables | `Mask`, `DQF`, `Power`, `Temp`, `Area` |
 | Platform | GOES-18, ABI, CONUS scene |
 
-Two assets hold the same cube:
-
-| Asset | Reader needs |
-|---|---|
-| `icechunk` | `icechunk`, `zarr`, `xarray` |
-| `kerchunk` | `xarray`, `kerchunk`, `fsspec`, `aiohttp`, `requests` |
-
-Both fetch the pixel bytes from NOAA's bucket, not from this catalog.
+One asset, `icechunk`, holds the cube. Reading it needs `icechunk`, `zarr` and
+`xarray`. The pixel bytes come from NOAA's bucket, not from this catalog.
 
 ## License
 
@@ -41,7 +35,18 @@ so the `license` field is `other`. A final value is an open question.
 NOAA and NESDIS produce the data and remain the authoritative source. This
 collection is a mirror of the `noaa-goes18` bucket, product `ABI-L2-FDCC`.
 Upstream: <https://registry.opendata.aws/noaa-goes/>. The `updated` field holds
-the time the references were last built. There is no scheduled sync yet.
+the time the collection was last built. There is no scheduled sync.
+
+NOAA's bucket has no FDCC files for GOES-18 from 2025-01-16 11:57Z to 15:02Z,
+so the cube has a 3-hour gap there. In the files below, `t` is the fill value
+`-999`, and the pixels are valid. Their `time` is the midpoint of the start and end stamps
+in the file name:
+
+| File start | `time` |
+|---|---|
+| 2025-01-10T00:01:17.5Z | 2025-01-10T00:01:17.5 |
+| 2025-01-20T15:10:22.4Z | 2025-01-20T15:12:47.4 |
+| 2025-01-20T15:15:22.4Z | 2025-01-20T15:17:47.4 |
 
 ## Access
 
@@ -60,24 +65,14 @@ storage = icechunk.http_storage(
     "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk"
 )
 repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_access=credentials)
-ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False)
+session = repo.readonly_session(tag="palisades-2025-01")   # or branch="main" for the latest
+ds = xr.open_zarr(session.store, consolidated=False)
 
 power = ds.Power.isel(time=-1).values   # last scan, raw float32, fill value -9
 ```
 
-Or open the Kerchunk references with no Icechunk dependency:
-
-```python
-import xarray as xr
-
-ds = xr.open_dataset(
-    "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
-    engine="kerchunk",
-    storage_options={"remote_protocol": "https"},
-)
-```
-
-Both recipes were tested against a local copy of this collection served over HTTP
-with Range support, with NOAA read live. They read the same 24 scans and the same
-`Power` array. The Source Cooperative URLs above are provisional and untested
-until the collection is uploaded.
+The recipe was tested against the local store with `icechunk.local_filesystem_storage`,
+with NOAA read live. The Source Cooperative URL above is provisional and
+untested until the collection is uploaded. For a worked example that starts
+from the catalog, see `examples/palisades-frp.ipynb` in the
+[source repository](https://github.com/mmidzik/goes-fdc-catalog).
