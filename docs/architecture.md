@@ -6,7 +6,7 @@ The pipeline code is in `pipeline/`. The published catalog is in `catalog/`.
 
 ## 1. Summary
 
-Publish NOAA's GOES ABI Fire/Hot Spot Characterization (FDC) as a Portolan catalog whose main asset is a **virtual Zarr cube**. The cube holds byte-range references into NOAA's raw netCDF in `s3://noaa-goes18`. We copy no pixel data and run no server. Everything we host is static files on Source Coop (`portolan-mirrors`).
+Publish NOAA's GOES ABI Fire/Hot Spot Characterization (FDC) as a Portolan catalog whose main asset is a **virtual Zarr cube**. The cube holds byte-range references into NOAA's raw netCDF in `s3://noaa-goes18`. We copy no pixel data and run no server. Everything we host is static files on Source Coop (a personal account, name pending).
 
 This catalog is a Zarr reference implementation for [portolan-spec #132](https://github.com/portolan-sdi/portolan-spec/issues/132), which defers a normative Zarr profile until real Zarr datasets have been tested in catalogs. Zarr stays outside Portolan's conformance surface, and the README says so.
 
@@ -184,7 +184,7 @@ Follows the provisional direction in #132:
 Gate: stage 2 starts only when stage 1 passes. Report findings on #132.
 
 **Stage 2: cloud and cron.**
-7. Move the store and catalog to `portolan-mirrors` on Source Coop. Confirm conditional writes, CORS and Range behavior.
+7. Move the store and catalog to the personal Source Coop account. Confirm conditional writes, CORS and Range behavior.
 8. Run the job on GitHub Actions hourly with Source Coop credentials in a secret.
 9. Backfill from 2023-01-04 (one-off) to grow the Palisades window into the full GOES-18 FDCC catalog, then turn on the hourly job.
 10. A human submits the portolan-registry PR.

@@ -25,6 +25,9 @@ dev = [
     "pyflakes",
     "pytest",
 ]
+publish = [
+    "boto3>=1.43.116",
+]
 viz = [
     "matplotlib>=3.11.2",
 ]

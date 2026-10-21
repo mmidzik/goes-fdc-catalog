@@ -49,6 +49,7 @@ from publish import (  # noqa: E402
     remote_index,
     split_s3_uri,
     unedited_sentinels,
+    unset_placeholders,
     upload_all,
 )
 
@@ -156,7 +157,15 @@ def main() -> int:
         print("catalog.publish.yaml still carries template values:")
         for value in stale:
             print(f"  {value}")
-        print("\nEdit write_prefix and public_base, then see SETUP.md.")
+        print("\nEdit write_prefix and public_base. See README.md.")
+        return 1
+
+    pending = unset_placeholders(config)
+    if pending and args.confirm:
+        print("catalog.publish.yaml still carries placeholders:")
+        for value in pending:
+            print(f"  {value}")
+        print("\nSet the Source Cooperative account, then re-run.")
         return 1
 
     bucket, prefix = split_s3_uri(config["write_prefix"])
@@ -193,11 +202,11 @@ def main() -> int:
     try:
         session = aws_session(config)
     except ImportError:
-        sys.exit("boto3 is required to upload. Run: pip install boto3")
+        sys.exit("boto3 is required to upload. Run: uv sync --group publish")
     except Exception as exc:  # noqa: BLE001 - stop before any upload
         sys.exit(f"cannot build an AWS session: {exc}")
 
-    failed = upload_all(session, bucket, changed)
+    failed = upload_all(session, bucket, changed, config)
     if failed:
         print(f"\n{len(failed)} of {len(changed)} file(s) failed:",
               file=sys.stderr)

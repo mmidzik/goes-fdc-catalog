@@ -12,7 +12,7 @@ downstream catches it.
 
 A pilot. No collection is published yet. The planned first collection is
 `goes-18/abi-l2-fdcc`. Public root URL, once published:
-`https://data.source.coop/portolan-mirrors/goes-fdc-catalog/` (provisional).
+`https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/` (provisional).
 
 ## Where the data comes from
 

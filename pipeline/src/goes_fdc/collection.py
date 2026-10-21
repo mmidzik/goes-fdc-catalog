@@ -1,7 +1,7 @@
 """Write the STAC collection for a built store, and stage the data tree.
 
     uv run python -m goes_fdc.collection --store local/smoke/icechunk \\
-        --public-base https://data.source.coop/portolan-mirrors/goes-fdc-catalog
+        --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
 
 Reads extent, grid, variables and projection from the store, so the metadata
 cannot drift from the data. Stages the Icechunk repo and a Kerchunk refs file
@@ -225,7 +225,7 @@ def main() -> None:
     p.add_argument("--store", type=Path, required=True, help="local Icechunk repo")
     p.add_argument("--public-base", required=True)
     p.add_argument("--catalog", type=Path, default=Path("catalog"))
-    p.add_argument("--data-dir", type=Path, default=Path("staging/goes/data"))
+    p.add_argument("--data-dir", type=Path, default=Path("local/publish"))
     p.add_argument("--bbox", type=float, nargs=4, default=None,
                    metavar=("W", "S", "E", "N"), help="from the NOAA file's geospatial_lat_lon_extent")
     args = p.parse_args()

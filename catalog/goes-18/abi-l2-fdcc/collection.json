@@ -71,7 +71,7 @@
       2000
     ]
   },
-  "updated": "2026-10-06T22:35:39Z",
+  "updated": "2026-10-21T18:37:13Z",
   "cube:dimensions": {
     "time": {
       "type": "temporal",
@@ -171,7 +171,7 @@
   },
   "assets": {
     "icechunk": {
-      "href": "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk/",
+      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk/",
       "type": "application/vnd+zarr",
       "title": "Virtual Zarr cube (Icechunk repository)",
       "description": "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. Open it with icechunk and xarray, and authorize the NOAA https prefix as a virtual chunk container. See README.md.",
@@ -193,7 +193,7 @@
       ]
     },
     "kerchunk": {
-      "href": "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
+      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
       "type": "application/json",
       "title": "Virtual Zarr cube (Kerchunk references)",
       "description": "Kerchunk reference file for the same cube. Open it with xarray's kerchunk engine, with no Icechunk dependency. Needs kerchunk, fsspec, aiohttp and requests. See README.md.",

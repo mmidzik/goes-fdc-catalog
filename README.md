@@ -181,7 +181,7 @@ Build the initial smoke-test catalog from a store, then stage and upload it:
 
 ```bash
 uv run python -m goes_fdc.collection --store local/smoke/icechunk \
-    --public-base https://data.source.coop/portolan-mirrors/goes-fdc-catalog
+    --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
 uv run --group viz python -m goes_fdc.thumbnail --store local/smoke/icechunk \
     --out catalog/goes-18/abi-l2-fdcc/thumbnail.png
 uv run python tools/publish.py          # dry run: catalog metadata
@@ -197,7 +197,7 @@ uv run python tools/publish.py         # dry run
 ```
 
 Data files never enter git. `.gitignore` blocks the common formats, plus
-`local/` and `pipeline/scratch/` for pipeline output.
+`local/` for pipeline output and staged data.
 
 ## Status and TODO
 
@@ -207,7 +207,7 @@ Done:
 - Initial smoke-test catalog built from those 24 scans: root, `goes-18`, and the
   `abi-l2-fdcc` collection with Icechunk and Kerchunk assets, thumbnail, README
   and AGENTS.md at each level. All gates pass and `rashid check --schema` reports
-  0 errors. Staged for upload under `staging/goes/data/` (about 1.4 MB).
+  0 errors. Staged for upload under `local/publish/` (about 1.4 MB).
 - Both access recipes tested against a local copy served over HTTP with Range
   support, with NOAA read live.
 
