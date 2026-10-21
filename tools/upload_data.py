@@ -42,6 +42,7 @@ from publish import (  # noqa: E402
     ROOT,
     Upload,
     aws_session,
+    effective_profile,
     content_type_for,
     is_publishable,
     is_unchanged,
@@ -179,7 +180,8 @@ def main() -> int:
 
     print(f"data_dir:    {base}/")
     print(f"target:      s3://{bucket}/{prefix}")
-    print(f"aws profile: {config.get('profile') or '(default session)'}")
+    profile = effective_profile(config)
+    print(f"aws profile: {profile or '(default session)'}")
     print(f"suffixes:    {', '.join(sorted(PUBLISHABLE_SUFFIXES))}")
     print(f"trees:       {', '.join(sorted(PUBLISHABLE_TREES))}")
     print(f"{len(uploads)} file(s) staged, {len(changed)} to upload")

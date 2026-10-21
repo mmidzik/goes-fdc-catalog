@@ -27,8 +27,10 @@ from publish import (  # noqa: E402
     Upload,
     aws_session,
     collect_uploads,
+    effective_profile,
     content_type_for,
     is_unchanged,
+    placeholder_files,
     split_s3_uri,
     unedited_sentinels,
     unset_placeholders,
@@ -160,6 +162,29 @@ check(
     }) == [],
     "a set account is accepted",
 )
+
+# A set config is not enough. The published files carry the account too.
+with tempfile.TemporaryDirectory() as tmp:
+    root = Path(tmp)
+    write(root / "catalog/catalog.json", '{"links": []}')
+    write(root / "catalog/README.md", "https://data.example.org/<ACCOUNT>/x\n")
+    write(root / "catalog/sub/collection.json",
+          '{"assets": {"a": {"href": "https://data.example.org/acct/x"}}}')
+    write(root / "catalog/thumbnail.png", "<ACCOUNT>")
+    config = {
+        "write_prefix": "s3://b/acct/x",
+        "public_base": "https://data.example.org/acct/x",
+        "publish_dir": "catalog",
+    }
+    check(
+        placeholder_files(collect_uploads(config, root)) == ["acct/x/README.md"],
+        "a placeholder in a published text file is reported, binaries are not read",
+    )
+    config["public_base"] = "https://data.example.org/<ACCOUNT>/x"
+    check(
+        "acct/x/catalog.json" in placeholder_files(collect_uploads(config, root)),
+        "the rewritten root catalog bytes are checked",
+    )
 
 # --- split_s3_uri ------------------------------------------------------
 check(split_s3_uri("s3://b/a/c") == ("b", "a/c"), "plain uri")
@@ -300,7 +325,10 @@ else:
             "[profile a-profile]\nregion = eu-west-1\n",
         )
         os.environ["AWS_CONFIG_FILE"] = str(conf)
-        os.environ.pop("AWS_PROFILE", None)
+        os.environ["AWS_SHARED_CREDENTIALS_FILE"] = str(Path(tmp) / "none")
+        for name in ("AWS_PROFILE", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY",
+                     "AWS_SESSION_TOKEN"):
+            os.environ.pop(name, None)
 
         named = aws_session({"profile": "a-profile", "region": "us-west-2"})
         check(named.profile_name == "a-profile", "profile reaches the session")
@@ -317,6 +345,24 @@ else:
 
         empty = aws_session({"profile": "", "region": ""})
         check(empty.profile_name == "default", "an empty profile is no profile")
+
+        # Environment credentials replace only a profile that does not exist.
+        os.environ["AWS_ACCESS_KEY_ID"] = "test-key-id"
+        os.environ["AWS_SECRET_ACCESS_KEY"] = "test-secret"
+        check(
+            effective_profile({"profile": "a-profile"}) == "a-profile",
+            "a profile that exists wins over environment credentials",
+        )
+        check(
+            effective_profile({"profile": "missing"}) is None,
+            "a missing profile gives way to environment credentials",
+        )
+        os.environ.pop("AWS_ACCESS_KEY_ID")
+        os.environ.pop("AWS_SECRET_ACCESS_KEY")
+        check(
+            effective_profile({"profile": "missing"}) == "missing",
+            "a missing profile is kept when there are no environment credentials",
+        )
 
 if errors:
     print("\n".join(f"error  {e}" for e in errors))

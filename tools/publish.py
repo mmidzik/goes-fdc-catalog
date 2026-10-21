@@ -47,6 +47,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -168,6 +169,24 @@ def unset_placeholders(config: dict[str, str]) -> list[str]:
     return [p for p in PLACEHOLDERS if p in blob]
 
 
+# Suffixes whose bytes are read for placeholders. The catalog writes the public
+# base into STAC hrefs, READMEs and agent guides, so a set config does not mean
+# a set catalog.
+TEXT_SUFFIXES = {".json", ".geojson", ".md", ".txt", ".yaml", ".xml"}
+
+
+def placeholder_files(uploads: list[Upload]) -> list[str]:
+    """Keys of the text objects whose uploaded bytes still carry a placeholder."""
+    found = []
+    for upload in uploads:
+        if upload.local.suffix.lower() not in TEXT_SUFFIXES:
+            continue
+        data = upload.body if upload.body is not None else upload.local.read_bytes()
+        if any(p.encode() in data for p in PLACEHOLDERS):
+            found.append(upload.key)
+    return found
+
+
 def content_type_for(path: Path) -> str:
     """The Content-Type an object gets, by suffix and by location."""
     if path.suffix == ".json" and (
@@ -275,16 +294,31 @@ def aws_session(config: dict[str, str]):
     """
     import boto3
 
-    # In CI there is no named profile: credentials arrive as environment
-    # variables. Honour the configured profile only when it exists locally.
-    import os
-    profile = config.get("profile") or None
-    if os.environ.get("AWS_ACCESS_KEY_ID"):
-        profile = None
     return boto3.Session(
-        profile_name=profile,
+        profile_name=effective_profile(config),
         region_name=config.get("region") or None,
     )
+
+
+def effective_profile(config: dict[str, str]) -> str | None:
+    """The profile the session uses, which is the configured one if it exists.
+
+    CI has no named profile. Its credentials come from environment variables.
+    So a configured profile that is absent from the AWS config is dropped when
+    ``AWS_ACCESS_KEY_ID`` is set. A profile that exists always wins over the
+    environment. When neither holds, the configured name is kept and boto3
+    raises ProfileNotFound. Without botocore the configured name is returned.
+    """
+    profile = config.get("profile") or None
+    if profile is None or not os.environ.get("AWS_ACCESS_KEY_ID"):
+        return profile
+    try:
+        import botocore.session
+    except ImportError:
+        return profile
+    if profile in botocore.session.Session().available_profiles:
+        return profile
+    return None
 
 
 # Source Cooperative sits behind a CDN that answers 524 when its origin takes
@@ -478,14 +512,6 @@ def main() -> int:
         print("\nEdit write_prefix and public_base. See README.md.")
         return 1
 
-    pending = unset_placeholders(config)
-    if pending and args.confirm:
-        print("catalog.publish.yaml still carries placeholders:")
-        for value in pending:
-            print(f"  {value}")
-        print("\nSet the Source Cooperative account, then re-run.")
-        return 1
-
     bucket, prefix = split_s3_uri(config["write_prefix"])
     uploads = collect_uploads(config)
     if not uploads:
@@ -493,12 +519,32 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
+    pending = unset_placeholders(config)
+    pending_files = placeholder_files(uploads)
+    if (pending or pending_files) and args.confirm:
+        if pending:
+            print("catalog.publish.yaml still carries placeholders:")
+            for value in pending:
+                print(f"  {value}")
+        if pending_files:
+            print("published files still carry placeholders:")
+            for key in pending_files:
+                print(f"  {key}")
+        print("\nSet the Source Cooperative account, regenerate the "
+              "collection, and edit the READMEs and AGENTS.md files. "
+              "Then re-run.")
+        return 1
+
     index = {} if args.force else remote_index(bucket, prefix, config)
     changed = [u for u in uploads if args.force or not is_unchanged(u, index)]
 
     print(f"publish_dir: {config['publish_dir']}/")
     print(f"target:      s3://{bucket}/{prefix}")
-    print(f"aws profile: {config.get('profile') or '(default session)'}")
+    profile = effective_profile(config)
+    print(f"aws profile: {profile or '(default session)'}")
+    if config.get("profile") and profile is None:
+        print(f"             profile {config['profile']!r} is not in the AWS "
+              "config. AWS_ACCESS_KEY_ID is used instead.")
     print(f"{len(uploads)} file(s) published, {len(changed)} to upload")
     print("this never deletes; removing a file here does not unpublish it")
 
@@ -509,8 +555,10 @@ def main() -> int:
             print(f"  would upload  {upload.key}")
         if len(changed) > 20:
             print(f"  ... and {len(changed) - 20} more")
-        if pending:
-            print(f"\nplaceholders still set: {', '.join(pending)}")
+        if pending or pending_files:
+            print(f"\nplaceholders still set: {', '.join(PLACEHOLDERS)} in "
+                  f"{'the config and ' if pending else ''}"
+                  f"{len(pending_files)} published file(s)")
             print("--confirm is refused until they are replaced.")
         print("\ndry run. re-run with --confirm to upload.")
         return 0
