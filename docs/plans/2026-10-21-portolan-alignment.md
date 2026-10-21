@@ -1,4 +1,4 @@
-# Portolan Alignment Plan: goes-fdc-catalog
+# Portolan alignment plan: goes-fdc-catalog
 
 ## 1. Purpose
 
@@ -33,13 +33,13 @@ Out of scope:
 | A3 | Source Cooperative account | Personal account of Maya Midzik. Account name is `<ACCOUNT>`. | Placeholder, pending Maya Midzik |
 | A4 | `write_prefix` | `s3://us-west-2.opendata.source.coop/<ACCOUNT>/goes-fdc-catalog` | Placeholder, depends on A3 |
 | A5 | `public_base` | `https://data.source.coop/<ACCOUNT>/goes-fdc-catalog` | Placeholder, depends on A3 |
-| A6 | Root catalog scope | GOES ABI Fire/Hot Spot Characterization only. The repository name and bucket prefix `goes-fdc-catalog` stay unchanged. | Set |
+| A6 | Root catalog scope | GOES ABI Fire/Hot Spot Characterization only. The repository name and bucket prefix `goes-fdc-catalog` do not change. | Set |
 | A7 | Root catalog `id` | `goes-fdc` | Set |
 | A8 | Root catalog `title` | `GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)` | Set |
 | A9 | Satellite sub-catalogs | `catalog/goes-18/` stays as the first sub-catalog. Later satellites get sibling sub-catalogs. | Set |
 | A10 | Data staging directory | `local/publish`, inside the gitignored `local/` directory | Set |
 | A11 | Workflow security | All third-party actions are pinned by commit SHA. zizmor runs in CI. | Set |
-| A12 | Root `self` link | `tools/publish.py` adds it to the uploaded bytes. The tracked `catalog/catalog.json` carries no `self` link. | Set |
+| A12 | Root `self` link | `tools/publish.py` adds it to the uploaded bytes. The tracked `catalog/catalog.json` has no `self` link. | Set |
 
 ## 4. Phase 1: Specification version
 
@@ -59,7 +59,7 @@ Out of scope:
 
 ### 4.2 Outputs
 
-- Three catalog files that declare v0.2.0.
+- `catalog/catalog.json`, `catalog/goes-18/catalog.json`, and `collection.json`, each declaring v0.2.0.
 - One rashid range, stated identically in four places.
 
 ### 4.3 Acceptance criteria
@@ -76,7 +76,7 @@ Out of scope:
    - Set `write_prefix` and `public_base` to the values in A4 and A5.
    - Replace the PROVISIONAL header comment with a statement that the target is the personal Source Cooperative account.
    - Set `data_dir: local/publish`.
-   - Keep `profile` commented out. Add a note that names the profile under which the personal credentials are stored, once A3 is set.
+   - Keep `profile` commented out. Add a note that gives the profile under which the personal credentials are stored, once A3 is set.
 2. In `.gitignore`, remove the `staging/*/data/` and `pipeline/scratch/` entries. Keep `local/`.
 3. Move any staged files from `staging/goes/data/` to `local/publish/`. Delete the empty `staging/` and `pipeline/scratch/` directories.
 4. Regenerate `catalog/goes-18/abi-l2-fdcc/collection.json` with `goes_fdc.collection --public-base` set to the A5 value, so the `icechunk` and `kerchunk` asset hrefs use the new base.
@@ -98,7 +98,7 @@ Out of scope:
 
 ### 5.2 Outputs
 
-- A publish configuration that names the personal account, with placeholders where A3 is open.
+- A publish configuration that specifies the personal account, with placeholders where A3 is open.
 - One staging location, `local/publish`.
 - A publish tool that writes the root `self` link and retries transient Source Cooperative failures.
 
@@ -144,7 +144,7 @@ Out of scope:
    - Run `uv run pyflakes tools/*.py tests/*.py pipeline/src pipeline/tests`.
    - Run `uv run pytest`.
    - Run `uv run python tests/run_all.py` with `CI_LIGHT=1`.
-2. Remove the separate rashid and stac-check install. `uv.lock` becomes the single source for validator versions. Keep stac-check unpinned in `pyproject.toml`, so the stac-check exemption still expires when upstream fixes the crash. Record in `docs/conformance.md` that `uv lock --upgrade-package stac-check` is the step that picks up a new release.
+2. Remove the separate rashid and stac-check install. `uv.lock` becomes the source for validator versions. Keep stac-check unpinned in `pyproject.toml`, so the stac-check exemption still expires when upstream fixes the crash. Record in `docs/conformance.md` that `uv lock --upgrade-package stac-check` is the step that picks up a new release.
 3. Pin every third-party action in `ci.yml` by full commit SHA, with the tag in a trailing comment. This applies to `actions/checkout`, `actions/setup-python` (if still used), and `astral-sh/setup-uv`.
 4. Set `persist-credentials: false` on every `actions/checkout` step. This clears the zizmor `artipacked` finding.
 5. Add a zizmor step to `ci.yml`: `uvx zizmor --offline .github/workflows`. Pin the zizmor version.
@@ -152,7 +152,7 @@ Out of scope:
 
 ### 7.2 Outputs
 
-- A CI workflow that installs from `uv.lock`, runs the pipeline unit tests, lints the pipeline, and audits the workflows.
+- A CI workflow that installs from `uv.lock`. It runs the pipeline unit tests and lint, the catalog gates, and the workflow audit.
 
 ### 7.3 Acceptance criteria
 
@@ -183,11 +183,11 @@ Out of scope:
 
 ## 9. Sequence
 
-The phases run in order 1 to 5. Phases 1 and 3 both edit the catalog JSON files, and Phase 2 regenerates `collection.json`. They therefore run in sequence on one branch. Phase 4 is independent of the catalog files and can run on its own branch. Each phase is one commit in conventional form.
+The phases run in order 1 to 5. Phases 1 and 3 both edit the catalog JSON files, and Phase 2 regenerates `collection.json`. They run in sequence on one branch. Phase 4 is independent of the catalog files and can run on its own branch. Each phase is one commit in conventional form.
 
 ## 10. Open items
 
 | Item | Owner | Blocks |
 |---|---|---|
 | Source Cooperative account name (A3) | Maya Midzik | Final values of A4 and A5. Phase 2 runs with the placeholder and is completed when A3 is set. |
-| Catalog `license` value | Maya Midzik | Nothing in this plan. It is listed in the README TODO. |
+| Catalog `license` value | Maya Midzik | No phase of this plan. It is listed in the README TODO. |

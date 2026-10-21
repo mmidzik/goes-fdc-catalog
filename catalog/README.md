@@ -1,4 +1,4 @@
-# GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)
+# Fire/hot spot characterization from the GOES-R imager
 
 Virtual Zarr views of the Fire/Hot Spot Characterization (FDC) product from
 NOAA's GOES-R Advanced Baseline Imager (ABI).
@@ -11,9 +11,9 @@ This catalog is a pilot. Publishing to Source Cooperative is TODO, so nothing is
 published yet. The one collection is `abi-l2-fdcc` under `goes-18`: the ABI Level 2 Fire/Hot Spot
 Characterization product for CONUS, from GOES-18. It is one 1500 × 2500 grid
 per scan, about every 5 minutes. The pilot window is the Palisades fire, 2025-01-07
-to 2025-01-31. The catalog later grows to the full GOES-18 record, to the other GOES-R
-satellites, and to the full disk and mesoscale FDC sectors. It stays limited to
-the FDC product.
+to 2025-01-31. Later versions add the full GOES-18 record and the other GOES-R satellites.
+The full disk and mesoscale FDC sectors come after that. The catalog covers the
+FDC product only.
 
 The Zarr assets are outside the Portolan conformance surface. The Portolan
 specification defers Zarr support until real Zarr datasets have been tested in
@@ -34,5 +34,5 @@ sync runs yet.
 
 ## Access
 
-Nothing is published yet. Each collection documents its own access. Start with
+The catalog is not published yet. Each collection documents its own access. Start with
 [goes-18/abi-l2-fdcc](./goes-18/abi-l2-fdcc/README.md).

@@ -1,4 +1,4 @@
-# AGENTS.md: GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)
+# AGENTS.md: fire/hot spot characterization from the GOES-R imager
 
 Guidance for AI agents and automated clients working with this catalog.
 
@@ -11,7 +11,7 @@ downstream catches it.
 ## What this catalog holds
 
 A pilot, limited to the ABI Fire/Hot Spot Characterization (FDC) product.
-Nothing is published yet. The one collection is `goes-18/abi-l2-fdcc`. Public root URL, once published:
+The catalog is not published yet. The one collection is `goes-18/abi-l2-fdcc`. Public root URL, once published:
 `https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/` (provisional).
 
 ## Where the data comes from
