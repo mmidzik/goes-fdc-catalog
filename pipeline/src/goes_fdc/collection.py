@@ -1,7 +1,7 @@
 """Write the STAC collection for a built store, and stage the data tree.
 
     uv run python -m goes_fdc.collection --store local/smoke/icechunk \\
-        --public-base https://data.source.coop/portolan-mirrors/goes-fdc-catalog
+        --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
 
 Reads extent, grid, variables and projection from the store, so the metadata
 cannot drift from the data. Stages the Icechunk repo and a Kerchunk refs file
@@ -26,7 +26,7 @@ from virtualizarr.registry import ObjectStoreRegistry
 
 from . import keys, store, virtualize
 
-PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.1.1/schema.json"
+PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
 EXTENSIONS = [
     PORTOLAN_SCHEMA,
     "https://stac-extensions.github.io/zarr/v1.1.0/schema.json",
@@ -123,9 +123,9 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 "url": "https://www.goes-r.gov/",
             },
             {
-                "name": "mmidzik (personal repository)",
+                "name": "Maya Midzik",
                 "roles": ["host", "processor"],
-                "url": "https://github.com/mmidzik/goes-fdc-catalog/issues",
+                "url": "https://github.com/mmidzik/goes-fdc-catalog",
             },
         ],
         "extent": {
@@ -198,7 +198,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             },
         },
         "links": [
-            {"rel": "root", "href": "../../catalog.json", "type": "application/json", "title": "GOES ABI (NOAA GOES-R)"},
+            {"rel": "root", "href": "../../catalog.json", "type": "application/json", "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"},
             {"rel": "parent", "href": "../catalog.json", "type": "application/json", "title": "GOES-18"},
             {"rel": "describedby", "href": "./README.md", "type": "text/markdown", "title": "Collection README"},
             {"rel": "agents", "href": "./AGENTS.md", "type": "text/markdown", "title": "Collection agent guide"},
@@ -225,7 +225,7 @@ def main() -> None:
     p.add_argument("--store", type=Path, required=True, help="local Icechunk repo")
     p.add_argument("--public-base", required=True)
     p.add_argument("--catalog", type=Path, default=Path("catalog"))
-    p.add_argument("--data-dir", type=Path, default=Path("staging/goes/data"))
+    p.add_argument("--data-dir", type=Path, default=Path("local/publish"))
     p.add_argument("--bbox", type=float, nargs=4, default=None,
                    metavar=("W", "S", "E", "N"), help="from the NOAA file's geospatial_lat_lon_extent")
     args = p.parse_args()

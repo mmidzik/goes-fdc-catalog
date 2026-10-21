@@ -57,7 +57,7 @@ config.set_virtual_chunk_container(icechunk.VirtualChunkContainer(NOAA, icechunk
 credentials = icechunk.containers_credentials({NOAA: icechunk.Credentials.HttpAccess()})
 
 storage = icechunk.http_storage(
-    "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk"
+    "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk"
 )
 repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_access=credentials)
 ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False)
@@ -71,7 +71,7 @@ Or open the Kerchunk references with no Icechunk dependency:
 import xarray as xr
 
 ds = xr.open_dataset(
-    "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
+    "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
     engine="kerchunk",
     storage_options={"remote_protocol": "https"},
 )

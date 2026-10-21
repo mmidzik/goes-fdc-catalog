@@ -3,17 +3,16 @@
 # Everything under publish_dir is synced 1:1 to write_prefix. Data files are
 # never placed under publish_dir, so they cannot be published by accident.
 #
-# PROVISIONAL: the Source Cooperative path below follows the pattern of the
-# FIRMS mirror (source.coop/portolan-mirrors/firms-catalog). Confirm the
-# account, product name, and write endpoint with Source Cooperative before the
-# first --confirm upload. Stage 1 publishes nothing.
+# The target is Maya Midzik's personal Source Cooperative account. <ACCOUNT>
+# is a placeholder until the account name is set. tools/publish.py runs a dry
+# run with it and refuses --confirm.
 
 # The S3 URI uploads are written to. Copy it from your storage provider.
-write_prefix: s3://us-west-2.opendata.source.coop/portolan-mirrors/goes-fdc-catalog
+write_prefix: s3://us-west-2.opendata.source.coop/<ACCOUNT>/goes-fdc-catalog
 
 # The public base URL that serves write_prefix. Every href in the catalog is
 # built from this, so it goes in the STAC JSON and write_prefix does not.
-public_base: https://data.source.coop/portolan-mirrors/goes-fdc-catalog
+public_base: https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
 
 region: us-west-2
 
@@ -32,4 +31,4 @@ publish_dir: catalog
 # Data files are too large for git, so keep this directory out of the
 # repository or ignored by it. Only the suffixes in PUBLISHABLE_SUFFIXES
 # upload. See the allow-list in tools/upload_data.py.
-data_dir: staging/goes/data
+data_dir: local/publish

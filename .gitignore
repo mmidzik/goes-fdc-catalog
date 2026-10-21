@@ -19,7 +19,6 @@
 
 # Downloaded sources and build scratch. Re-fetchable by your own tooling.
 sources/
-staging/*/data/
 .cache/
 
 # Secrets
@@ -34,6 +33,6 @@ __pycache__/
 .venv/
 .ruff_cache/
 
-# Local pipeline output (Icechunk repo, Kerchunk refs, raw netCDF samples)
+# Local pipeline output and staging: Icechunk repos, Kerchunk refs, raw
+# netCDF samples, probe scripts, and local/publish (data_dir).
 local/
-pipeline/scratch/

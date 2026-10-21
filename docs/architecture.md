@@ -6,7 +6,7 @@ The pipeline code is in `pipeline/`. The published catalog is in `catalog/`.
 
 ## 1. Summary
 
-Publish NOAA's GOES ABI Fire/Hot Spot Characterization (FDC) as a Portolan catalog whose main asset is a **virtual Zarr cube**. The cube holds byte-range references into NOAA's raw netCDF in `s3://noaa-goes18`. We copy no pixel data and run no server. Everything we host is static files on Source Coop (`portolan-mirrors`).
+Publish NOAA's GOES ABI Fire/Hot Spot Characterization (FDC) as a Portolan catalog whose main asset is a **virtual Zarr cube**. The cube holds byte-range references into NOAA's raw netCDF in `s3://noaa-goes18`. We copy no pixel data and run no server. Everything we host is static files on Source Coop (a personal account, name pending).
 
 This catalog is a Zarr reference implementation for [portolan-spec #132](https://github.com/portolan-sdi/portolan-spec/issues/132), which defers a normative Zarr profile until real Zarr datasets have been tested in catalogs. Zarr stays outside Portolan's conformance surface, and the README says so.
 
@@ -123,7 +123,7 @@ goes-abi/                       root catalog, mirror of NOAA GOES-R ABI
 
 ## 6a. Repo: seed from portolan-catalog-template
 
-Create the repo from [portolan-sdi/portolan-catalog-template](https://github.com/portolan-sdi/portolan-catalog-template) and work through its `SETUP.md`.
+The repo was created from [portolan-sdi/portolan-catalog-template](https://github.com/portolan-sdi/portolan-catalog-template). The org governance workflows were removed.
 
 Kept as is:
 - `catalog/` is the published tree. STAC JSON, README, AGENTS.md and thumbnail live there. Nothing outside it publishes.
@@ -175,7 +175,7 @@ Follows the provisional direction in #132:
 
 **Stage 1: local, Palisades fire window (no cloud resources).** Window: GOES-18 FDCC, 2025-01-07 to 2025-01-31 UTC (ignition about 18:10Z on 2025-01-07, containment around 2025-01-31, verify the end date). First pass is 2025-01-07 to 2025-01-09 (about 860 scans) to prove the pipeline, then widen to the full window (about 7,200 scans). The collection's temporal extent is the window for now and grows into the full catalog in stage 2.
 1. Read the reference catalog, #132, #128, the STAC `zarr` extension, and `portolan --help`.
-2. Create the repo from `portolan-catalog-template` and finish `SETUP.md`. Add `pipeline/` (`uv`, VirtualiZarr, Icechunk, obstore, xarray). Stage 1 writes the Icechunk repo and Kerchunk parquet to a gitignored local directory, and STAC files into `catalog/`.
+2. Create the repo from `portolan-catalog-template`. Add `pipeline/` (`uv`, VirtualiZarr, Icechunk, obstore, xarray). Stage 1 writes the Icechunk repo and Kerchunk parquet to a gitignored local directory, and STAC files into `catalog/`.
 3. List and virtualize GOES-18 FDCC for the first-pass dates from the public bucket. Concatenate along `time`. Commit to a local Icechunk repo, export Kerchunk parquet. Settle open questions 1 to 3 (virtualizability, `proj`, virtual chunk access).
 4. Verify: read back through both paths and compare `Power`, `Mask`, `DQF`, `Temp`, `Area` against a direct netCDF read for sampled scans. Confirm the store holds no pixel bytes. Reproduce the FDCC summed-FRP curve over the Palisades box for 18:00 to 21:00Z 2025-01-07 and compare with `goes-abi.md` (first M2 detection in FDCM2 was 18:27:57Z, so check FDCC's first detection time too).
 5. Test the append: add the next days to the existing store and confirm they land in the level-0 group and the store still opens. Time the run to size the cron job and the backfill.
@@ -184,7 +184,7 @@ Follows the provisional direction in #132:
 Gate: stage 2 starts only when stage 1 passes. Report findings on #132.
 
 **Stage 2: cloud and cron.**
-7. Move the store and catalog to `portolan-mirrors` on Source Coop. Confirm conditional writes, CORS and Range behavior.
+7. Move the store and catalog to the personal Source Coop account. Confirm conditional writes, CORS and Range behavior.
 8. Run the job on GitHub Actions hourly with Source Coop credentials in a secret.
 9. Backfill from 2023-01-04 (one-off) to grow the Palisades window into the full GOES-18 FDCC catalog, then turn on the hourly job.
 10. A human submits the portolan-registry PR.

@@ -22,6 +22,12 @@ inherited from what a bucket listing can tell you:
   compared on size alone.
 - ``--force`` skips the listing entirely.
 
+The root ``catalog.json`` is the one file whose uploaded bytes differ from the
+tracked bytes. The publish step adds an absolute ``self`` link built from
+``public_base``. The tracked file carries no ``self`` link, so the same tree
+stays valid in the repository, in a preview, and in production. This follows
+the Portolan git-backed catalog practice. The tracked file is never modified.
+
 **It never deletes.** Removing a file from the published directory does not
 unpublish it. Delete the object yourself if that is what you meant.
 
@@ -40,6 +46,8 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+import os
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -95,6 +103,17 @@ class Upload:
     local: Path
     key: str
     content_type: str
+    # The bytes to upload when they differ from the file at ``local``. Only
+    # the root catalog sets this. See ``with_self_link``.
+    body: bytes | None = None
+
+    def size(self) -> int:
+        return len(self.body) if self.body is not None else self.local.stat().st_size
+
+    def md5(self) -> str:
+        if self.body is not None:
+            return hashlib.md5(self.body).hexdigest()  # noqa: S324 - S3 ETag
+        return md5(self.local)
 
 
 def load_config(path: Path = CONFIG) -> dict[str, str]:
@@ -105,7 +124,9 @@ def load_config(path: Path = CONFIG) -> dict[str, str]:
     nesting to it.
 
     ``write_prefix``, ``public_base`` and ``publish_dir`` are required.
-    ``region`` and ``profile`` are optional scalars and may be absent or empty.
+    ``region``, ``profile`` and ``endpoint_url`` are optional scalars and may
+    be absent or empty. ``endpoint_url`` targets an S3-compatible host such
+    as Source Cooperative, which does not serve from AWS S3.
     """
     config: dict[str, str] = {}
     for line in path.read_text().splitlines():
@@ -135,6 +156,35 @@ def unedited_sentinels(config: dict[str, str]) -> list[str]:
     """Sentinel values still present in the config, if any."""
     blob = f"{config['write_prefix']} {config['public_base']}"
     return [s for s in SENTINELS if s in blob]
+
+
+# Placeholders this repository sets on purpose while a value is pending. A
+# dry run works with them. An upload is refused.
+PLACEHOLDERS = ("<ACCOUNT>",)
+
+
+def unset_placeholders(config: dict[str, str]) -> list[str]:
+    """Placeholder values still present in the config, if any."""
+    blob = f"{config['write_prefix']} {config['public_base']}"
+    return [p for p in PLACEHOLDERS if p in blob]
+
+
+# Suffixes whose bytes are read for placeholders. The catalog writes the public
+# base into STAC hrefs, READMEs and agent guides, so a set config does not mean
+# a set catalog.
+TEXT_SUFFIXES = {".json", ".geojson", ".md", ".txt", ".yaml", ".xml"}
+
+
+def placeholder_files(uploads: list[Upload]) -> list[str]:
+    """Keys of the text objects whose uploaded bytes still carry a placeholder."""
+    found = []
+    for upload in uploads:
+        if upload.local.suffix.lower() not in TEXT_SUFFIXES:
+            continue
+        data = upload.body if upload.body is not None else upload.local.read_bytes()
+        if any(p.encode() in data for p in PLACEHOLDERS):
+            found.append(upload.key)
+    return found
 
 
 def content_type_for(path: Path) -> str:
@@ -175,8 +225,38 @@ def collect_uploads(config: dict[str, str], root: Path = ROOT) -> list[Upload]:
         if not is_publishable(rel):
             continue
         key = f"{prefix}/{rel.as_posix()}" if prefix else rel.as_posix()
-        uploads.append(Upload(path, key, content_type_for(path)))
+        body = None
+        if rel == ROOT_CATALOG:
+            body = with_self_link(path.read_bytes(), config["public_base"])
+        uploads.append(Upload(path, key, content_type_for(path), body))
     return uploads
+
+
+# The root catalog, relative to publish_dir. It alone gets a self link.
+ROOT_CATALOG = Path("catalog.json")
+
+
+def self_href(public_base: str) -> str:
+    """The absolute URL the root catalog is served from."""
+    return f"{public_base.rstrip('/')}/{ROOT_CATALOG.as_posix()}"
+
+
+def with_self_link(raw: bytes, public_base: str) -> bytes:
+    """The root catalog bytes with one absolute ``self`` link first in links.
+
+    Any ``self`` link already present is replaced, so the output holds exactly
+    one. The JSON is written back with the same 2-space indent and trailing
+    newline as the tracked files.
+    """
+    doc = json.loads(raw)
+    links = [link for link in doc.get("links", []) if link.get("rel") != "self"]
+    links.insert(0, {
+        "rel": "self",
+        "href": self_href(public_base),
+        "type": "application/json",
+    })
+    doc["links"] = links
+    return (json.dumps(doc, indent=2, ensure_ascii=False) + "\n").encode()
 
 
 def md5(path: Path) -> str:
@@ -196,12 +276,12 @@ def is_unchanged(upload: Upload, index: dict[str, tuple[int, str]]) -> bool:
     if entry is None:
         return False
     size, etag = entry
-    if size != upload.local.stat().st_size:
+    if size != upload.size():
         return False
     etag = etag.strip('"')
     if "-" in etag:
         return True
-    return etag == md5(upload.local)
+    return etag == upload.md5()
 
 
 def aws_session(config: dict[str, str]):
@@ -215,9 +295,105 @@ def aws_session(config: dict[str, str]):
     import boto3
 
     return boto3.Session(
-        profile_name=config.get("profile") or None,
+        profile_name=effective_profile(config),
         region_name=config.get("region") or None,
     )
+
+
+def effective_profile(config: dict[str, str]) -> str | None:
+    """The profile the session uses, which is the configured one if it exists.
+
+    CI has no named profile. Its credentials come from environment variables.
+    So a configured profile that is absent from the AWS config is dropped when
+    ``AWS_ACCESS_KEY_ID`` is set. A profile that exists always wins over the
+    environment. When neither holds, the configured name is kept and boto3
+    raises ProfileNotFound. Without botocore the configured name is returned.
+    """
+    profile = config.get("profile") or None
+    if profile is None or not os.environ.get("AWS_ACCESS_KEY_ID"):
+        return profile
+    try:
+        import botocore.session
+    except ImportError:
+        return profile
+    if profile in botocore.session.Session().available_profiles:
+        return profile
+    return None
+
+
+# Source Cooperative sits behind a CDN that answers 524 when its origin takes
+# too long on an UploadPart. botocore's standard retry mode covers 500, 502,
+# 503 and 504 but not 524, so a part that times out fails the whole file. Both
+# 2022 and 2023 died this way after their data had already been rebuilt.
+RETRY_STATUS = {500, 502, 503, 504, 520, 522, 524}
+# A dropped connection carries no HTTP status at all, so a status-only rule
+# never retries it. A 1.3 GB archive is twenty-odd parts, and losing any one of
+# them failed the whole file: "Could not connect to the endpoint URL ...
+# partNumber=7". Matched by class name to avoid importing botocore here, which
+# the dry-run and test paths deliberately run without.
+RETRY_EXCEPTIONS = {
+    "EndpointConnectionError", "ConnectionClosedError", "ConnectTimeoutError",
+    "ReadTimeoutError", "ConnectionError", "IncompleteReadError",
+    "ResponseStreamingError", "RemoteDisconnected", "ProtocolError",
+}
+UPLOAD_ATTEMPTS = 6
+
+
+def client_config():
+    """botocore retry and timeout settings, or None when botocore is absent.
+
+    Returning None rather than raising keeps the dry-run and test paths, which
+    never touch AWS, working without boto3 installed.
+    """
+    try:
+        from botocore.config import Config
+    except ImportError:
+        return None
+    return Config(retries={"max_attempts": 10, "mode": "standard"},
+                  read_timeout=180, connect_timeout=30)
+
+
+def transfer_config():
+    """Multipart settings, or None when boto3 is absent.
+
+    Larger parts mean fewer requests and so fewer chances to hit a timeout: a
+    460 MB file is 58 parts at the 8 MB default and 8 parts at 64 MB.
+    """
+    try:
+        from boto3.s3.transfer import TransferConfig
+    except ImportError:
+        return None
+    return TransferConfig(multipart_threshold=64 * 1024 * 1024,
+                          multipart_chunksize=64 * 1024 * 1024,
+                          max_concurrency=4, use_threads=True)
+
+
+def s3_client(session, config: dict[str, str]):
+    """An S3 client honoring ``endpoint_url`` when the config sets one.
+
+    Source Cooperative serves S3 at its own host, so a client built without
+    the endpoint silently talks to AWS instead.
+    """
+    kwargs = {}
+    endpoint = config.get("endpoint_url") or None
+    if endpoint:
+        kwargs["endpoint_url"] = endpoint
+    cfg = client_config()
+    if cfg is not None:
+        kwargs["config"] = cfg
+    return session.client("s3", **kwargs)
+
+
+def status_of(exc) -> int | None:
+    meta = getattr(exc, "response", None) or {}
+    return (meta.get("ResponseMetadata") or {}).get("HTTPStatusCode")
+
+
+def is_transient(exc) -> bool:
+    """Worth another attempt: a gateway status, or a lost connection."""
+    if status_of(exc) in RETRY_STATUS:
+        return True
+    return any(t.__name__ in RETRY_EXCEPTIONS for t in type(exc).__mro__)
 
 
 def remote_index(
@@ -225,7 +401,7 @@ def remote_index(
 ) -> dict[str, tuple[int, str]]:
     """Size and ETag for every object under the prefix, or {} when unreadable."""
     try:
-        client = aws_session(config).client("s3")
+        client = s3_client(aws_session(config), config)
         index = {}
         paginator = client.get_paginator("list_objects_v2")
         for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
@@ -241,7 +417,7 @@ def remote_index(
         return {}
 
 
-def upload_all(session, bucket: str, uploads: list[Upload]) -> list[str]:
+def upload_all(session, bucket: str, uploads: list[Upload], config: dict[str, str] | None = None) -> list[str]:
     """Upload every object on a bounded pool. Returns the keys that failed.
 
     Every upload is attempted. One failure does not cancel the rest, so the
@@ -259,16 +435,38 @@ def upload_all(session, bucket: str, uploads: list[Upload]) -> list[str]:
         if existing is not None:
             return existing
         with new_client:
-            thread_state.client = session.client("s3")
+            thread_state.client = s3_client(session, config or {})
         return thread_state.client
 
+    xfer = transfer_config()
+
     def put(upload: Upload) -> None:
-        client().upload_file(
-            str(upload.local),
-            bucket,
-            upload.key,
-            ExtraArgs={"ContentType": upload.content_type},
-        )
+        # Retry the whole file on a gateway-class failure. Uploading a part
+        # twice is safe: multipart parts are addressed by number, so a repeat
+        # replaces rather than appends.
+        import time
+
+        extra = {"ExtraArgs": {"ContentType": upload.content_type}}
+        if xfer is not None:
+            extra["Config"] = xfer
+        for attempt in range(1, UPLOAD_ATTEMPTS + 1):
+            try:
+                if upload.body is not None:
+                    client().put_object(
+                        Bucket=bucket, Key=upload.key, Body=upload.body,
+                        ContentType=upload.content_type)
+                else:
+                    client().upload_file(
+                        str(upload.local), bucket, upload.key, **extra)
+                return
+            except Exception as exc:  # noqa: BLE001 - retry decision below
+                if not is_transient(exc) or attempt == UPLOAD_ATTEMPTS:
+                    raise
+                wait = min(60, 2 ** attempt)
+                why = status_of(exc) or type(exc).__name__
+                print(f"  retry {upload.key} after {why} "
+                      f"({attempt}/{UPLOAD_ATTEMPTS - 1}, {wait}s)")
+                time.sleep(wait)
 
     failures: list[str] = []
     done = 0
@@ -311,7 +509,7 @@ def main() -> int:
         print("catalog.publish.yaml still carries template values:")
         for value in stale:
             print(f"  {value}")
-        print("\nEdit write_prefix and public_base, then see SETUP.md.")
+        print("\nEdit write_prefix and public_base. See README.md.")
         return 1
 
     bucket, prefix = split_s3_uri(config["write_prefix"])
@@ -321,20 +519,47 @@ def main() -> int:
               file=sys.stderr)
         return 1
 
+    pending = unset_placeholders(config)
+    pending_files = placeholder_files(uploads)
+    if (pending or pending_files) and args.confirm:
+        if pending:
+            print("catalog.publish.yaml still carries placeholders:")
+            for value in pending:
+                print(f"  {value}")
+        if pending_files:
+            print("published files still carry placeholders:")
+            for key in pending_files:
+                print(f"  {key}")
+        print("\nSet the Source Cooperative account, regenerate the "
+              "collection, and edit the READMEs and AGENTS.md files. "
+              "Then re-run.")
+        return 1
+
     index = {} if args.force else remote_index(bucket, prefix, config)
     changed = [u for u in uploads if args.force or not is_unchanged(u, index)]
 
     print(f"publish_dir: {config['publish_dir']}/")
     print(f"target:      s3://{bucket}/{prefix}")
-    print(f"aws profile: {config.get('profile') or '(default session)'}")
+    profile = effective_profile(config)
+    print(f"aws profile: {profile or '(default session)'}")
+    if config.get("profile") and profile is None:
+        print(f"             profile {config['profile']!r} is not in the AWS "
+              "config. AWS_ACCESS_KEY_ID is used instead.")
     print(f"{len(uploads)} file(s) published, {len(changed)} to upload")
     print("this never deletes; removing a file here does not unpublish it")
+
+    print(f"self link:   {self_href(config['public_base'])} (root catalog only)")
 
     if not args.confirm:
         for upload in changed[:20]:
             print(f"  would upload  {upload.key}")
         if len(changed) > 20:
             print(f"  ... and {len(changed) - 20} more")
+        if pending or pending_files:
+            print(f"\nplaceholders still set: {', '.join(PLACEHOLDERS)} in "
+                  f"{'the config and ' if pending else ''}"
+                  f"{len(pending_files)} published file(s)")
+            print("--confirm is refused until they are replaced.")
         print("\ndry run. re-run with --confirm to upload.")
         return 0
 
@@ -347,11 +572,11 @@ def main() -> int:
     try:
         session = aws_session(config)
     except ImportError:
-        sys.exit("boto3 is required to upload. Run: pip install boto3")
+        sys.exit("boto3 is required to upload. Run: uv sync --group publish")
     except Exception as exc:  # noqa: BLE001 - stop before any upload
         sys.exit(f"cannot build an AWS session: {exc}")
 
-    failed = upload_all(session, bucket, changed)
+    failed = upload_all(session, bucket, changed, config)
     if failed:
         print(f"\n{len(failed)} of {len(changed)} file(s) failed:",
               file=sys.stderr)

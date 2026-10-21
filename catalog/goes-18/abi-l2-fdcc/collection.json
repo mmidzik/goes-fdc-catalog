@@ -2,7 +2,7 @@
   "type": "Collection",
   "stac_version": "1.1.0",
   "stac_extensions": [
-    "https://schemas.portolan-sdi.org/portolan/v0.1.1/schema.json",
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
     "https://stac-extensions.github.io/zarr/v1.1.0/schema.json",
     "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
     "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
@@ -32,12 +32,12 @@
       "url": "https://www.goes-r.gov/"
     },
     {
-      "name": "mmidzik (personal repository)",
+      "name": "Maya Midzik",
       "roles": [
         "host",
         "processor"
       ],
-      "url": "https://github.com/mmidzik/goes-fdc-catalog/issues"
+      "url": "https://github.com/mmidzik/goes-fdc-catalog"
     }
   ],
   "extent": {
@@ -71,7 +71,7 @@
       2000
     ]
   },
-  "updated": "2026-10-06T22:35:39Z",
+  "updated": "2026-10-21T18:38:10Z",
   "cube:dimensions": {
     "time": {
       "type": "temporal",
@@ -171,7 +171,7 @@
   },
   "assets": {
     "icechunk": {
-      "href": "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk/",
+      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk/",
       "type": "application/vnd+zarr",
       "title": "Virtual Zarr cube (Icechunk repository)",
       "description": "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. Open it with icechunk and xarray, and authorize the NOAA https prefix as a virtual chunk container. See README.md.",
@@ -193,7 +193,7 @@
       ]
     },
     "kerchunk": {
-      "href": "https://data.source.coop/portolan-mirrors/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
+      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/kerchunk/refs.json",
       "type": "application/json",
       "title": "Virtual Zarr cube (Kerchunk references)",
       "description": "Kerchunk reference file for the same cube. Open it with xarray's kerchunk engine, with no Icechunk dependency. Needs kerchunk, fsspec, aiohttp and requests. See README.md.",
@@ -233,7 +233,7 @@
       "rel": "root",
       "href": "../../catalog.json",
       "type": "application/json",
-      "title": "GOES ABI (NOAA GOES-R)"
+      "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"
     },
     {
       "rel": "parent",

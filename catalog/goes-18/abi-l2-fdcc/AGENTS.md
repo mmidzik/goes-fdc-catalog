@@ -14,7 +14,7 @@ A virtual Zarr cube over 24 GOES-18 CONUS Fire/Hot Spot Characterization scans,
 2025-01-07T18:02Z to 19:57Z (measured from the `time` coordinate). Dimensions
 `time` (24) × `y` (1500) × `x` (2500). Variables `Mask`, `DQF`, `Power`, `Temp`,
 `Area`. Public root, provisional:
-`https://data.source.coop/portolan-mirrors/goes-fdc-catalog/`.
+`https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/`.
 
 ## How to read it
 

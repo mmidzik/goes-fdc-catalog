@@ -2,16 +2,17 @@
   "type": "Catalog",
   "stac_version": "1.1.0",
   "stac_extensions": [
-    "https://schemas.portolan-sdi.org/portolan/v0.1.1/schema.json"
+    "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
   ],
-  "id": "goes-abi",
-  "title": "GOES ABI (NOAA GOES-R)",
-  "description": "Virtual Zarr views over NOAA's GOES-R ABI netCDF files in the public noaa-goes* buckets. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data. The first collection is GOES-18 ABI-L2-FDCC, the CONUS Fire/Hot Spot Characterization product.",
+  "id": "goes-fdc",
+  "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)",
+  "description": "Virtual Zarr views of NOAA's GOES-R ABI Level 2 Fire/Hot Spot Characterization (FDC) product, read from the netCDF files in the public noaa-goes* buckets. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data. The first collection is GOES-18 ABI-L2-FDCC, the CONUS scene.",
   "links": [
     {
       "rel": "root",
       "href": "./catalog.json",
-      "type": "application/json"
+      "type": "application/json",
+      "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"
     },
     {
       "rel": "child",
@@ -42,5 +43,23 @@
       "title": "Issue tracker"
     }
   ],
-  "updated": "2026-10-06T22:35:10Z"
+  "updated": "2026-10-06T22:35:10Z",
+  "providers": [
+    {
+      "name": "NOAA NESDIS",
+      "roles": [
+        "producer",
+        "licensor"
+      ],
+      "url": "https://www.goes-r.gov/"
+    },
+    {
+      "name": "Maya Midzik",
+      "roles": [
+        "host",
+        "processor"
+      ],
+      "url": "https://github.com/mmidzik/goes-fdc-catalog"
+    }
+  ]
 }

@@ -42,6 +42,7 @@ from publish import (  # noqa: E402
     ROOT,
     Upload,
     aws_session,
+    effective_profile,
     content_type_for,
     is_publishable,
     is_unchanged,
@@ -49,6 +50,7 @@ from publish import (  # noqa: E402
     remote_index,
     split_s3_uri,
     unedited_sentinels,
+    unset_placeholders,
     upload_all,
 )
 
@@ -156,7 +158,15 @@ def main() -> int:
         print("catalog.publish.yaml still carries template values:")
         for value in stale:
             print(f"  {value}")
-        print("\nEdit write_prefix and public_base, then see SETUP.md.")
+        print("\nEdit write_prefix and public_base. See README.md.")
+        return 1
+
+    pending = unset_placeholders(config)
+    if pending and args.confirm:
+        print("catalog.publish.yaml still carries placeholders:")
+        for value in pending:
+            print(f"  {value}")
+        print("\nSet the Source Cooperative account, then re-run.")
         return 1
 
     bucket, prefix = split_s3_uri(config["write_prefix"])
@@ -170,7 +180,8 @@ def main() -> int:
 
     print(f"data_dir:    {base}/")
     print(f"target:      s3://{bucket}/{prefix}")
-    print(f"aws profile: {config.get('profile') or '(default session)'}")
+    profile = effective_profile(config)
+    print(f"aws profile: {profile or '(default session)'}")
     print(f"suffixes:    {', '.join(sorted(PUBLISHABLE_SUFFIXES))}")
     print(f"trees:       {', '.join(sorted(PUBLISHABLE_TREES))}")
     print(f"{len(uploads)} file(s) staged, {len(changed)} to upload")
@@ -193,11 +204,11 @@ def main() -> int:
     try:
         session = aws_session(config)
     except ImportError:
-        sys.exit("boto3 is required to upload. Run: pip install boto3")
+        sys.exit("boto3 is required to upload. Run: uv sync --group publish")
     except Exception as exc:  # noqa: BLE001 - stop before any upload
         sys.exit(f"cannot build an AWS session: {exc}")
 
-    failed = upload_all(session, bucket, changed)
+    failed = upload_all(session, bucket, changed, config)
     if failed:
         print(f"\n{len(failed)} of {len(changed)} file(s) failed:",
               file=sys.stderr)

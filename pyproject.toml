@@ -20,10 +20,13 @@ goes-fdc = "goes_fdc.cli:main"
 
 [dependency-groups]
 dev = [
-    "rashid>=0.1.5,<0.2.0",
+    "rashid>=0.1.8,<0.2.0",
     "stac-check",
     "pyflakes",
     "pytest",
+]
+publish = [
+    "boto3>=1.43.116",
 ]
 viz = [
     "matplotlib>=3.11.2",

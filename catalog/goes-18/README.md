@@ -1,6 +1,7 @@
 # GOES-18
 
-Products from GOES-18, the GOES-West satellite. NOAA and NESDIS produce the data
+Fire/Hot Spot Characterization (FDC) products from GOES-18, the GOES-West
+satellite. NOAA and NESDIS produce the data
 and remain the authoritative source. The collections here are mirrors that hold
 references and metadata, not pixel data.
 
