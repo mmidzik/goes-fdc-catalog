@@ -53,8 +53,11 @@ store. The Source Cooperative URL is untested.
   joins the two sides, which hides the gap.
 - **Scene extent.** The collection bbox is NOAA's `geospatial_lat_lon_extent`
   for this scene and crosses the antimeridian (west 175.6, east -89.6).
-- **Reprocessing.** The Icechunk repository checks that a NOAA file has not
-  changed since the reference was written.
+- **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
+  reference was written. NOAA's bucket answers `412` for a file modified after
+  that time (measured with a date before a file's `Last-Modified`). Icechunk
+  then stops with `the checksum of the object owning the virtual chunk has changed`. It does not compare bytes, so a re-upload of identical bytes also
+  stops the read.
 
 ## Structure
 

@@ -124,7 +124,10 @@ This catalog is a test case for it.
 catalog has no copy of its own, so it works only while those objects stay at
 those keys and keep their bytes. That has three consequences:
 - If NOAA or AWS moves or deletes a file, the reference breaks. The Icechunk repo
-  detects a changed file.
+  detects a changed file. Each chunk read sends `If-Unmodified-Since` with the
+  time the reference was written. NOAA's bucket answers `412` for a file changed
+  after that time, and Icechunk stops the read. A re-upload of the same bytes
+  also stops it.
 - The GOES-16 and GOES-17 buckets stopped growing (2025/097 and 2023/010), so
   their references are stable. GOES-18 and GOES-19 are live and grow every scan.
 - Other mirrors of the same files (Google Cloud, Earth Engine, NCEI) are not

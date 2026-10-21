@@ -71,8 +71,12 @@ ds = xr.open_zarr(session.store, consolidated=False)
 power = ds.Power.isel(time=-1).values   # last scan, raw float32, fill value -9
 ```
 
-The recipe was tested against the local store with `icechunk.local_filesystem_storage`,
-with NOAA read live. The Source Cooperative URL above is provisional and
-untested until the collection is uploaded. For a worked example that starts
+The recipe was tested on 2026-10-21 with `icechunk.http_storage` against the
+local store served over HTTP, in a clean environment with only `icechunk`,
+`zarr` and `xarray`, and with NOAA read live. It opened the tag `demo-2025-01`
+and returned the same values as a local read. Without the virtual chunk
+container, the read fails with "you need to authorize the virtual chunk
+container". The Source Cooperative URL above is provisional and untested until
+the collection is uploaded. For a worked example that starts
 from the catalog, see `examples/palisades-frp.ipynb` in the
 [source repository](https://github.com/mmidzik/goes-fdc-catalog).
