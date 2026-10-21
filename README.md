@@ -10,9 +10,9 @@ it. The catalog relies on that S3 copy as its data source. CI validates every
 change to the metadata.
 
 > **Status: demo, built locally. Publishing to Source Cooperative is TODO.**
-> The catalog covers two weeks of GOES-18 CONUS scans over the Palisades fire,
-> 2025-01-07 to 2025-01-21. The same pipeline extends the cube forward or back
-> in time. Publishing is still TODO. See [Status and TODO](#status-and-todo).
+> The catalog covers two weeks of full-scene GOES-18 CONUS scans, 2025-01-07
+> to 2025-01-20 UTC. The same pipeline extends the cube forward or back in
+> time. See [Status and TODO](#status-and-todo).
 
 - **Published catalog**: TODO, not on Source Cooperative yet
 - **STAC root**: TODO, same
@@ -88,8 +88,9 @@ One collection, `goes-18/abi-l2-fdcc`: the CONUS FDC product from GOES-18. Each
 scan is a 1500 × 2500 grid on the ABI geostationary fixed grid, about every 5
 minutes. Five variables: `Mask`, `DQF`, `Power`, `Temp`, `Area`.
 
-The demo window is two weeks over the Palisades fire, 2025-01-07 to 2025-01-21
-UTC. The pipeline appends by time, so the same cube grows to a longer window
+The demo window is two weeks, 2025-01-07 to 2025-01-20 UTC. Every scan is the
+full CONUS scene. The window covers the January 2025 Los Angeles fires, which
+the example notebook uses. The pipeline appends by time, so the same cube grows to a longer window
 without a rebuild. The next step is two years, built on a cloud machine. Names
 follow `abi-<level>-<product><sector>` under one sub-catalog per satellite, so
 other satellites and sectors can be added as siblings.
@@ -242,8 +243,8 @@ Data files never enter git. `.gitignore` blocks the common formats, plus
 Done:
 - Local pipeline over the NOAA buckets: append, resume, one commit per day, and
   a grid and encoding check on every scan.
-- The two-week Palisades cube, built locally: 3,996 scans, tagged
-  `palisades-2025-01` in the Icechunk repository.
+- The two-week cube, built locally: 3,996 scans, tagged `demo-2025-01` in the
+  Icechunk repository.
 - The catalog, with the root, `goes-18`, and the `abi-l2-fdcc` collection with the
   Icechunk asset, thumbnail, README and AGENTS.md at each level.
 - `examples/palisades-frp.ipynb`, which reads the cube through the catalog.

@@ -13,7 +13,7 @@ downstream catches it.
 A virtual Zarr cube over 3,996 GOES-18 CONUS Fire/Hot Spot Characterization
 scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z (measured from the `time`
 coordinate). Dimensions `time` (3996) × `y` (1500) × `x` (2500). The Icechunk tag
-`palisades-2025-01` pins this snapshot. Variables `Mask`, `DQF`, `Power`, `Temp`,
+`demo-2025-01` pins this snapshot. Variables `Mask`, `DQF`, `Power`, `Temp`,
 `Area`. Public root, provisional:
 `https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/`.
 

@@ -11,7 +11,8 @@ This catalog is a demo. Publishing to Source Cooperative is TODO, so nothing
 is published yet. The one collection is `abi-l2-fdcc` under `goes-18`: the ABI
 Level 2 Fire/Hot Spot Characterization product for CONUS, from GOES-18. It is
 one 1500 × 2500 grid per scan, about every 5 minutes. The demo window is two
-weeks over the Palisades fire, 2025-01-07 to 2025-01-21. The next version
+weeks, 2025-01-07 to 2025-01-20 UTC, with the full CONUS scene in every scan.
+The next version
 extends the window to two years. Other GOES-R satellites and FDC sectors can be
 added as sibling collections. The catalog covers the FDC product only.
 

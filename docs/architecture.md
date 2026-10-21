@@ -1,6 +1,6 @@
 # Architecture: GOES ABI FDC as a virtual Zarr Portolan catalog
 
-Status: demo. Scope: GOES-18 `ABI-L2-FDCC`, 2025-01-07 to 2025-01-21 (the Palisades fire), built locally. The pipeline extends the window. Updated 2026-10-21.
+Status: demo. Scope: GOES-18 `ABI-L2-FDCC`, full CONUS scene, 2025-01-07 to 2025-01-20, built locally. The pipeline extends the window. Updated 2026-10-21.
 
 The pipeline code is in `pipeline/`. The published catalog is in `catalog/`.
 
@@ -183,7 +183,7 @@ Follows the provisional direction in #132:
 
 Gate: stage 2 starts only when stage 1 passes. Report findings on #132.
 
-**Stage 1b: the two-week demo (done locally, 2026-10-21).** Two weeks over the Palisades fire, 2025-01-07 to 2025-01-21. Kerchunk dropped. A grid and encoding signature check on every scan. One commit per UTC day. `examples/palisades-frp.ipynb` reads the cube through the catalog. The update workflow is drafted with a manual trigger and has not run.
+**Stage 1b: the two-week demo (done locally, 2026-10-21).** Two weeks of full CONUS scans, 2025-01-07 to 2025-01-20. The window covers the January 2025 Los Angeles fires, the example in the notebook. Kerchunk dropped. A grid and encoding signature check on every scan. One commit per UTC day. `examples/palisades-frp.ipynb` reads the cube through the catalog. The update workflow is drafted with a manual trigger and has not run.
 
 **Stage 2: two years, then publish.**
 7. Extend the window to two years on a cloud machine, with the same `goes-fdc build` command. Measure manifest size and open time, and decide on Icechunk manifest splitting from those numbers.

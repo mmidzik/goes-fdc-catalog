@@ -5,7 +5,7 @@ flag for the GOES-18 CONUS scene. The collection is a **virtual Zarr cube**: it
 holds byte-range references into NOAA's `ABI-L2-FDCC` netCDF files in the public
 `noaa-goes18` bucket and copies no pixel data.
 
-> **Demo.** This collection covers two weeks of scans over the Palisades fire,
+> **Demo.** This collection covers two weeks of full-scene CONUS scans,
 > 2025-01-07 to 2025-01-20 UTC. The same pipeline extends the cube in time. The
 > Zarr assets are outside the Portolan conformance surface
 > ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
@@ -15,7 +15,7 @@ holds byte-range references into NOAA's `ABI-L2-FDCC` netCDF files in the public
 | | |
 |---|---|
 | Scans | 3,996, 2025-01-07T00:02Z to 2025-01-20T23:57Z, time axis `time` (UTC, mid-scan) |
-| Snapshot | Icechunk tag `palisades-2025-01` |
+| Snapshot | Icechunk tag `demo-2025-01` |
 | Grid | 1500 × 2500, ABI geostationary fixed grid, 2 km at nadir |
 | Variables | `Mask`, `DQF`, `Power`, `Temp`, `Area` |
 | Platform | GOES-18, ABI, CONUS scene |
@@ -65,7 +65,7 @@ storage = icechunk.http_storage(
     "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk"
 )
 repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_access=credentials)
-session = repo.readonly_session(tag="palisades-2025-01")   # or branch="main" for the latest
+session = repo.readonly_session(tag="demo-2025-01")   # or branch="main" for the latest
 ds = xr.open_zarr(session.store, consolidated=False)
 
 power = ds.Power.isel(time=-1).values   # last scan, raw float32, fill value -9
