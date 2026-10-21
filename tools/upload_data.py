@@ -72,7 +72,7 @@ PUBLISHABLE_SUFFIXES = {
 # Icechunk repository is a tree of files with no suffix (`refs/`, `snapshots/`,
 # `manifests/`, `chunks/`). It is useless with any of them missing. A component
 # name is exact, so a directory called `icechunk-scratch` stays barred.
-PUBLISHABLE_TREES = {"icechunk", "kerchunk"}
+PUBLISHABLE_TREES = {"icechunk"}
 
 
 def data_root(config: dict[str, str], root: Path = ROOT) -> Path:

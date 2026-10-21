@@ -1,18 +1,17 @@
-"""Write the STAC collection for a built store, and stage the data tree.
+"""Write the STAC collection for a built store.
 
-    uv run python -m goes_fdc.collection --store local/smoke/icechunk \\
+    uv run python -m goes_fdc.collection \\
         --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
 
 Reads extent, grid, variables and projection from the store, so the metadata
-cannot drift from the data. Stages the Icechunk repo and a Kerchunk refs file
-under the data directory that `tools/upload_data.py` uploads.
+cannot drift from the data. The store is built in place under data_dir, so
+`tools/upload_data.py` uploads it as it is.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
-import shutil
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -172,23 +171,6 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 "xarray:open_kwargs": {"engine": "zarr", "consolidated": False},
                 **cube_props,
             },
-            "kerchunk": {
-                "href": f"{root}/kerchunk/refs.json",
-                "type": "application/json",
-                "title": "Virtual Zarr cube (Kerchunk references)",
-                "description": (
-                    "Kerchunk reference file for the same cube. Open it with xarray's kerchunk "
-                    "engine, with no Icechunk dependency. Needs kerchunk, fsspec, aiohttp and requests. "
-                    "See README.md."
-                ),
-                "roles": ["data"],
-                "zarr:zarr_format": 2,
-                "zarr:node_type": "group",
-                "xarray:open_kwargs": {"engine": "kerchunk"},
-                "xarray:storage_options": {"remote_protocol": "https"},
-                **files["kerchunk"],
-                **cube_props,
-            },
             "thumbnail": {
                 "href": "./thumbnail.png",
                 "type": "image/png",
@@ -210,22 +192,11 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
     }
 
 
-def stage(repo_path: Path, data_dir: Path, cube) -> None:
-    """Copy the Icechunk repo and write a Kerchunk refs file under the data tree."""
-    dest = data_dir / SLUG / COLLECTION
-    if (dest / "icechunk").exists():
-        shutil.rmtree(dest / "icechunk")
-    shutil.copytree(repo_path, dest / "icechunk")
-    (dest / "kerchunk").mkdir(parents=True, exist_ok=True)
-    cube.vz.to_kerchunk(str(dest / "kerchunk" / "refs.json"), format="json")
-
-
 def main() -> None:
     p = argparse.ArgumentParser(prog="python -m goes_fdc.collection", description=__doc__)
-    p.add_argument("--store", type=Path, required=True, help="local Icechunk repo")
+    p.add_argument("--store", type=Path, default=store.DEFAULT_STORE, help="local Icechunk repo")
     p.add_argument("--public-base", required=True)
     p.add_argument("--catalog", type=Path, default=Path("catalog"))
-    p.add_argument("--data-dir", type=Path, default=Path("local/publish"))
     p.add_argument("--bbox", type=float, nargs=4, default=None,
                    metavar=("W", "S", "E", "N"), help="from the NOAA file's geospatial_lat_lon_extent")
     args = p.parse_args()
@@ -235,20 +206,7 @@ def main() -> None:
     out = args.catalog / SLUG / COLLECTION
     out.mkdir(parents=True, exist_ok=True)
 
-    # Rebuild the cube over exactly the scans in the store, for the Kerchunk refs file.
-    t0 = datetime.fromisoformat(info["start"].removesuffix("Z")).replace(tzinfo=timezone.utc)
-    t1 = datetime.fromisoformat(info["end"].removesuffix("Z")).replace(tzinfo=timezone.utc)
-    scans = keys.list_scans(SATELLITE, PRODUCT, t0 - timedelta(minutes=10), t1 + timedelta(minutes=1))
-    scans = [s for s in scans if s.end >= t0 and s.start <= t1]
-    if len(scans) != info["n_scans"]:
-        raise SystemExit(f"store has {info['n_scans']} scans, listing found {len(scans)}")
-    stage(args.store, args.data_dir, virtualize.build_cube(scans))
-    print(f"staged data under {args.data_dir / SLUG / COLLECTION}")
-
-    files = {
-        "kerchunk": file_props(args.data_dir / SLUG / COLLECTION / "kerchunk" / "refs.json"),
-        "thumbnail": file_props(out / "thumbnail.png"),
-    }
+    files = {"thumbnail": file_props(out / "thumbnail.png")}
     doc = collection_json(info, args.public_base.rstrip("/"), bbox, files)
     (out / "collection.json").write_text(json.dumps(doc, indent=2) + "\n")
     print(f"wrote {out / 'collection.json'}: {info['n_scans']} scans, {info['start']} to {info['end']}")

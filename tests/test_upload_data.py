@@ -69,11 +69,11 @@ check(not is_data_publishable(Path("a/notes.md")), "markdown is barred")
 check(not is_data_publishable(Path("a/roads.parquet.tmp")), "tmp is barred")
 check(not is_data_publishable(Path("a/.hidden/x.parquet")), "dotdir is barred")
 
-# --- whole trees: Icechunk and Kerchunk -------------------------------
-check(PUBLISHABLE_TREES == {"icechunk", "kerchunk"}, "the tree allow-list is exact")
+# --- whole trees: Icechunk -------------------------------------------
+check(PUBLISHABLE_TREES == {"icechunk"}, "the tree allow-list is exact")
 check(is_data_publishable(Path("c/icechunk/snapshots/ABC123")), "icechunk snapshot passes")
 check(is_data_publishable(Path("c/icechunk/refs/branch.main/ref.json")), "icechunk ref passes")
-check(is_data_publishable(Path("c/kerchunk/refs.json")), "kerchunk refs pass")
+check(not is_data_publishable(Path("c/kerchunk/refs.json")), "a kerchunk tree is barred")
 check(not is_data_publishable(Path("c/icechunk-scratch/x")), "similar dir name is barred")
 check(not is_data_publishable(Path("c/icechunk")), "a bare file named icechunk is barred")
 check(not is_data_publishable(Path("c/icechunk/.hidden/x")), "dotdir inside a tree is barred")

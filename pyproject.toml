@@ -10,8 +10,6 @@ dependencies = [
     "obstore",
     "xarray",
     "h5netcdf",
-    "kerchunk",
-    "fastparquet",
     "pyproj>=3.8.0",
 ]
 
