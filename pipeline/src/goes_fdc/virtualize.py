@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
@@ -15,6 +16,8 @@ from .keys import BUCKETS, Scan
 
 VARIABLES = ["Mask", "DQF", "Power", "Temp", "Area"]
 KEEP_COORDS = {"time", "x", "y"}
+
+log = logging.getLogger("goes_fdc")
 
 # A virtual cube inherits the grid and encoding of the files it references, so
 # every scan in one cube must share them. NOAA changes these over a satellite's
@@ -104,7 +107,7 @@ def scan_time(scan: Scan, t) -> np.datetime64:
     hi = np.datetime64(scan.end.replace(tzinfo=None), "ns") + np.timedelta64(1, "m")
     if t is not None and lo <= t <= hi:
         return t
-    print(f"note: {scan.key}: t is not usable, using the file-name midpoint", flush=True)
+    log.warning("%s: t is not usable, using the file-name midpoint", scan.key)
     return midpoint(scan)
 
 

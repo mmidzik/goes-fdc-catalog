@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import argparse
-import time
+import logging
 from datetime import datetime, timedelta, timezone
 
 from . import keys, store, virtualize
@@ -16,21 +16,7 @@ DAY = timedelta(days=1)
 def _utc(s: str) -> datetime:
     return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
 
-
-class Laps:
-    """Seconds spent in each phase of a day's build, for the progress line."""
-
-    def __init__(self) -> None:
-        self._last = time.monotonic()
-        self.phases: list[str] = []
-
-    def lap(self, name: str) -> None:
-        now = time.monotonic()
-        self.phases.append(f"{name} {now - self._last:.1f}s")
-        self._last = now
-
-    def __str__(self) -> str:
-        return ", ".join(self.phases)
+log = logging.getLogger("goes_fdc")
 
 
 def build(args: argparse.Namespace) -> None:
@@ -40,7 +26,7 @@ def build(args: argparse.Namespace) -> None:
     cutoff = None
     if seen is not None:
         cutoff = datetime.fromtimestamp(seen.astype("datetime64[s]").astype(int), timezone.utc)
-        print(f"store ends at {cutoff:%F %T}; resuming after it")
+        log.info("store ends at %s; resuming after it", f"{cutoff:%F %T}")
     day = start.replace(hour=0, minute=0, second=0, microsecond=0)
     total = 0
     while day < end:
@@ -48,21 +34,19 @@ def build(args: argparse.Namespace) -> None:
         day += DAY
         if cutoff is not None and hi <= cutoff:
             continue
-        laps = Laps()
         scans = keys.list_scans(args.satellite, args.product, lo, hi)
         if cutoff is not None:
             scans = [s for s in scans if s.start > cutoff]
         if not scans:
-            print(f"{lo:%F}: no new scans")
+            log.info("%s: no new scans", f"{lo:%F}")
             continue
-        laps.lap("list")
+        log.info("%s: listed %d scans", f"{lo:%F}", len(scans))
         cube = virtualize.build_cube(scans, workers=args.workers)
-        laps.lap("virtualize")
+        log.info("%s: virtualized", f"{lo:%F}")
         snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}")
-        laps.lap("commit")
+        log.info("%s: committed %s", f"{lo:%F}", snap)
         total += len(scans)
-        print(f"{lo:%F}: {len(scans)} scans, commit {snap}, {laps}", flush=True)
-    print(f"done: {total} scans added")
+    log.info("done: %d scans added", total)
 
 
 def main() -> None:
@@ -77,4 +61,6 @@ def main() -> None:
     b.add_argument("--workers", type=int, default=16)
     b.set_defaults(func=build)
     args = p.parse_args()
+    # Each line carries its time, so the gap between two lines is the time a step took.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     args.func(args)
