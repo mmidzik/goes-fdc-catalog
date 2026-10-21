@@ -203,6 +203,8 @@ Gate: stage 2 starts only when stage 1 passes. Report findings on #132.
 
 ## 12. Stage 1 findings
 
+The raw findings of each build, by date. Section 13 groups what they mean for Zarr in Portolan.
+
 Measured on 2026-10-06 against `noaa-goes18`, with VirtualiZarr 2.7.3, Icechunk 2.3.0 and zarr 3.4.0.
 
 - **Virtualizable.** All five variables use 250 x 250 chunks with gzip and shuffle. `HDFParser` reads them. Read back through Icechunk, `Mask`, `DQF`, `Power`, `Temp` and `Area` are byte-identical to the raw netCDF for 4 sampled scans.
@@ -245,3 +247,30 @@ GOES-18 FDCC, 2025-01-07 to 2025-01-20, built on a laptop with 32 threads.
 - **Tags cannot be reused.** Icechunk refuses to create a tag with the name of a deleted tag. Choose tag names before publishing.
 
 Storage estimate for the Palisades window (about 7,200 scans), extrapolated from the 24-scan measurements and not yet measured at scale: Icechunk about 47 to 72 MB (6.5 to 10 KB per scan, and manifest growth under many appends is unverified), Kerchunk parquet about 30 MB, Kerchunk JSON about 365 MB. The raw netCDF would be about 1.6 GB (226 KB per scan) and is never downloaded or copied. The build reads headers only.
+
+## 13. Zarr in Portolan: findings from this demo
+
+Portolan defers a normative Zarr profile until real Zarr datasets have been tested in catalogs ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)). This section collects what this catalog found as one of those tests. Each item is marked **measured** (observed in this repository) or **open** (a question for the spec). The details and numbers are in section 12.
+
+### 13.1 Gaps in the catalog metadata
+
+- **The virtual chunk container (measured).** The cube's chunks live in NOAA's bucket, not next to the store. Icechunk reads them only after the reader authorizes `https://noaa-goes18.s3.amazonaws.com/` as a virtual chunk container. No field in the STAC `zarr` or `xarray` extensions carries that. Today the recipe is in the collection README, and `examples/palisades-frp.ipynb` copies it by hand.
+- **That the store is Icechunk (measured).** The asset media type is `application/vnd+zarr`. It says Zarr, not Icechunk. A generic Zarr client cannot open the repository by URL, and the media type does not tell a client that it needs the `icechunk` library.
+- **How to build the storage (measured).** The href gives a location. The reader still picks local, `http`, or `s3` storage from the href scheme.
+- **Which snapshot to open (open).** An Icechunk repository has branches and tags, and this catalog publishes the whole repository. The tag `demo-2025-01` appears in the collection README, but in no metadata field.
+- **Which grid era a cube covers (open).** A virtual cube inherits the grid of the files it references. GOES-18 FDCC changed its projection origin in 2022, so one satellite needs more than one cube to cover its whole record. No field states the era of a cube or links the cube for another era.
+- **Checksum and size of a directory asset (measured).** The `icechunk` asset is a directory, so it has no one `file:checksum` or `file:size` value. rashid 0.1.8 reports PTL-AST-003 as a warning for each.
+
+### 13.2 What worked
+
+- **Discovery (measured).** pystac walks root, `goes-18`, and `abi-l2-fdcc` with no special handling. The asset gives the href, media type, and `xarray:open_kwargs`, and that is enough to call `xarray.open_zarr` once the store is open.
+- **Projection (measured).** `proj:wkt2` on the asset is enough to convert a longitude and latitude box to fixed-grid scan angles with `pyproj` alone. The notebook needs no GOES-specific code for that step. A geostationary grid has no EPSG code, so `proj:code` is null and the WKT2 carries the CRS.
+- **Validation (measured).** rashid reports 0 errors on the catalog. Zarr stays outside the conformance surface, and the README says so.
+
+### 13.3 Lessons from building and serving a virtual store
+
+- **Split manifests from the start (measured).** Without manifest splitting, each daily append rewrote every manifest, and the repository grew with the square of the number of commits: 100 MB on disk for 13.3 MB of live manifests after 14 commits. With a split along `time` at 288 scans, the rebuilt repository is 20 MB. Earthmover reported the same need on GOES-16.
+- **An archive is not one grid (measured).** The first GOES-18 FDCC files sit at `-89.5` degrees as `GOES-Test`, and later files at `-137.0`, with different `x` and `y` axes. The pipeline compares a signature of each scan against the cube and stops on a mismatch.
+- **Bad headers become bad coordinates (measured).** In the window, the files listed in the collection README have `t` set to the fill value `-999` with valid pixels. One decoded to 2000-01-01 without an error. The pipeline uses the file-name midpoint for any `t` outside the scan's own stamps. A virtual cube copies header values, so a header check belongs in the build.
+- **Tags are permanent (measured).** Icechunk refuses to create a tag with the name of a deleted tag. Choose published tag names before the first upload.
+- **Cost (measured).** The build reads headers only: about 2.8 scans per second from a laptop, about 3.3 KB of manifest per scan. A read of a small box touches one chunk per variable per scan: 7,992 requests for `Power` and `Mask` over 3,996 scans, in 103 to 109 s. The source files are never copied.

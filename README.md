@@ -24,7 +24,9 @@ change to the metadata.
 This catalog is a first test of Zarr in a Portolan catalog. Portolan defers a
 normative Zarr profile until real Zarr datasets have been tested in catalogs
 ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
-The Zarr assets are outside the Portolan conformance surface.
+The Zarr assets are outside the Portolan conformance surface. What this demo
+found about Zarr in a Portolan catalog, including what the metadata cannot yet
+express, is in [docs/architecture.md section 13](docs/architecture.md#13-zarr-in-portolan-findings-from-this-demo).
 
 To see it work, run [examples/palisades-frp.ipynb](examples/palisades-frp.ipynb).
 It starts at `catalog/catalog.json` and finds the cube through the collection
