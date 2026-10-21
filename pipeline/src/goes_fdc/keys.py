@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -58,15 +59,26 @@ def bucket_store(satellite: str) -> S3Store:
     return S3Store(BUCKETS[satellite], region="us-east-1", skip_signature=True)
 
 
-def list_scans(satellite: str, product: str, start: datetime, end: datetime) -> list[Scan]:
-    """List scans whose start time falls in [start, end), sorted by start time."""
+def list_scans(
+    satellite: str, product: str, start: datetime, end: datetime, workers: int = 24
+) -> list[Scan]:
+    """List scans whose start time falls in [start, end), sorted by start time.
+
+    One list call per hour prefix. The calls run on a thread pool, because a
+    day is 24 round trips to us-east-1 and a serial loop waits on each one.
+    """
     store = bucket_store(satellite)
-    scans = []
-    for prefix in hour_prefixes(product, start, end):
+
+    def one(prefix: str) -> list[Scan]:
+        found = []
         for batch in obstore.list(store, prefix=prefix):
             for obj in batch:
                 if obj["path"].endswith(".nc"):
                     scan = parse_key(obj["path"])
                     if start <= scan.start < end:
-                        scans.append(scan)
-    return sorted(scans, key=lambda s: s.start)
+                        found.append(scan)
+        return found
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        parts = pool.map(one, hour_prefixes(product, start, end))
+    return sorted((s for part in parts for s in part), key=lambda s: s.start)

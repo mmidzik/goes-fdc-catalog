@@ -194,7 +194,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
 
 def main() -> None:
     p = argparse.ArgumentParser(prog="python -m goes_fdc.collection", description=__doc__)
-    p.add_argument("--store", type=Path, default=store.DEFAULT_STORE, help="local Icechunk repo")
+    p.add_argument("--store", default=str(store.DEFAULT_STORE), help="local path or s3://bucket/prefix of the Icechunk repo")
     p.add_argument("--public-base", required=True)
     p.add_argument("--catalog", type=Path, default=Path("catalog"))
     p.add_argument("--bbox", type=float, nargs=4, default=None,

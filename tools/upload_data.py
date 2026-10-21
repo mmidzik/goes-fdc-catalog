@@ -204,7 +204,7 @@ def main() -> int:
     try:
         session = aws_session(config)
     except ImportError:
-        sys.exit("boto3 is required to upload. Run: uv sync --group publish")
+        sys.exit("boto3 is required to upload. Run: uv sync --group upload")
     except Exception as exc:  # noqa: BLE001 - stop before any upload
         sys.exit(f"cannot build an AWS session: {exc}")
 

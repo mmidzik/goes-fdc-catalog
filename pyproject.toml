@@ -23,7 +23,13 @@ dev = [
     "pyflakes",
     "pytest",
 ]
-publish = [
+examples = [
+    "ipykernel>=7.4.0",
+    "matplotlib>=3.11.2",
+    "nbconvert>=7.17.2",
+    "pystac>=1.15.2",
+]
+upload = [
     "boto3>=1.43.116",
 ]
 viz = [

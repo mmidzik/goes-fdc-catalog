@@ -23,9 +23,24 @@ def repo_config(satellite: str) -> tuple[icechunk.RepositoryConfig, dict]:
     return cfg, icechunk.containers_credentials({base: icechunk.Credentials.HttpAccess()})
 
 
-def open_repo(path: Path, satellite: str) -> icechunk.Repository:
+def storage_for(location: Path | str) -> icechunk.Storage:
+    """Icechunk storage for a local path or an ``s3://bucket/prefix`` URI.
+
+    An s3 location reads credentials from the environment. The update workflow
+    uses it to append to the published store in place. It is not used for the
+    local demo build, and it is not yet tested against Source Cooperative.
+    """
+    text = str(location)
+    if text.startswith("s3://"):
+        bucket, _, prefix = text[len("s3://"):].partition("/")
+        return icechunk.s3_storage(bucket=bucket, prefix=prefix.strip("/") or None,
+                                   region="us-west-2", from_env=True)
+    return icechunk.local_filesystem_storage(text)
+
+
+def open_repo(path: Path | str, satellite: str) -> icechunk.Repository:
     cfg, cred = repo_config(satellite)
-    storage = icechunk.local_filesystem_storage(str(path))
+    storage = storage_for(path)
     return icechunk.Repository.open_or_create(
         storage, config=cfg, authorize_virtual_chunk_access=cred
     )
