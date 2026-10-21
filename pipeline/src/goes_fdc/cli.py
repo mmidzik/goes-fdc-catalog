@@ -17,6 +17,22 @@ def _utc(s: str) -> datetime:
     return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
 
 
+class Laps:
+    """Seconds spent in each phase of a day's build, for the progress line."""
+
+    def __init__(self) -> None:
+        self._last = time.monotonic()
+        self.phases: list[str] = []
+
+    def lap(self, name: str) -> None:
+        now = time.monotonic()
+        self.phases.append(f"{name} {now - self._last:.1f}s")
+        self._last = now
+
+    def __str__(self) -> str:
+        return ", ".join(self.phases)
+
+
 def build(args: argparse.Namespace) -> None:
     start, end = _utc(args.start), _utc(args.end)
     repo = store.open_repo(args.store, args.satellite)
@@ -32,24 +48,20 @@ def build(args: argparse.Namespace) -> None:
         day += DAY
         if cutoff is not None and hi <= cutoff:
             continue
-        t0 = time.monotonic()
+        laps = Laps()
         scans = keys.list_scans(args.satellite, args.product, lo, hi)
         if cutoff is not None:
             scans = [s for s in scans if s.start > cutoff]
         if not scans:
             print(f"{lo:%F}: no new scans")
             continue
-        t1 = time.monotonic()
+        laps.lap("list")
         cube = virtualize.build_cube(scans, workers=args.workers)
-        t2 = time.monotonic()
+        laps.lap("virtualize")
         snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}")
-        t3 = time.monotonic()
+        laps.lap("commit")
         total += len(scans)
-        print(
-            f"{lo:%F}: {len(scans)} scans, commit {snap}, "
-            f"list {t1 - t0:.1f}s, virtualize {t2 - t1:.1f}s, commit {t3 - t2:.1f}s",
-            flush=True,
-        )
+        print(f"{lo:%F}: {len(scans)} scans, commit {snap}, {laps}", flush=True)
     print(f"done: {total} scans added")
 
 
