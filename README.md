@@ -28,9 +28,9 @@ in catalogs. The Zarr assets are outside the Portolan conformance surface.
 
 Start with [docs/architecture.md](docs/architecture.md) for the data access
 paths, components, flow, and open questions. The collection's own README and
-AGENTS.md (what the data is, how to read it, the traps) arrive with the first
-collection, under `catalog/goes-18/abi-l2-fdcc/`. Everything below is about how
-this repository builds that catalog.
+AGENTS.md (what the data is, how to read it, the traps) are under
+`catalog/goes-18/abi-l2-fdcc/`. Everything below is about how this repository
+builds that catalog.
 
 ## The GOES data today
 
@@ -134,8 +134,9 @@ list of detections. GOES FDC is not.
 The update job is a scheduled GitHub Action, not a hosted service. A later
 event-driven version could subscribe to NOAA's `NewGOES18Object` SNS topic.
 
-**Zarr outside conformance.** The collection says so. `docs/conformance.md`
-records each validator finding the Zarr assets trigger and why it is accepted.
+**Zarr outside conformance.** The collection says so. rashid reports no error
+for the Zarr assets. `docs/conformance.md` lists the warnings it reports and
+records any finding that is accepted.
 
 **No computed statistics.** A growing cube's statistics change on every append.
 The collection carries `render` hints instead.
@@ -184,7 +185,7 @@ uv run python -m goes_fdc.collection --store local/smoke/icechunk \
     --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
 uv run --group viz python -m goes_fdc.thumbnail --store local/smoke/icechunk \
     --out catalog/goes-18/abi-l2-fdcc/thumbnail.png
-uv run python tools/publish.py          # dry run: catalog metadata
+uv run python tools/publish.py          # dry run: catalog metadata and the root self link
 uv run python tools/upload_data.py      # dry run: staged Icechunk and Kerchunk
 ```
 
@@ -212,15 +213,16 @@ Done:
   support, with NOAA read live.
 
 TODO:
-- **Publish to Source Cooperative.** Confirm the account, product name, and write
-  endpoint, then fill in the links at the top of this file. The path in
-  `catalog.publish.yaml` is a guess based on the FIRMS mirror. After the upload,
+- **Publish to Source Cooperative.** The target is a personal account. Its name
+  is the `<ACCOUNT>` placeholder in `catalog.publish.yaml`, in the collection
+  asset hrefs, and in the published READMEs and AGENTS.md files. Set it in all
+  of them, regenerate the collection, then fill in the links at the top of this
+  file. `tools/publish.py` refuses `--confirm` while the placeholder is set.
+  Install the upload dependency with `uv sync --group publish`. After the upload,
   run `rashid check catalog --schema --data --live --live-base-url <public base>`
   and re-test the access recipes against the real URLs.
 - Build the Palisades window and check the FRP curve against the published
   figure.
-- Write the `goes-18/abi-l2-fdcc` collection, validate it, and record accepted
-  findings in `docs/conformance.md`.
 - Decide the license value for the catalog.
 - Hourly update job on GitHub Actions.
 - Settle the Kerchunk export so one parquet covers the whole cube.

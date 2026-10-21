@@ -39,10 +39,15 @@ something.
 ## Accepted deviations
 
 None. `tests/test_conformance.py` runs with `--no-data`, so it does not read the
-Zarr assets. As of 2026-10-06, `rashid check catalog --schema` reports 0 errors on
-the initial `abi-l2-fdcc` collection. Its warnings are not gate failures. They
-name a missing `file:checksum` and `file:size` on the `icechunk` asset, which is
-a directory and has no single checksum.
+Zarr assets. As of 2026-10-21, `rashid check catalog --schema` (rashid 0.1.8)
+reports 0 errors. Warnings and info findings are not gate failures. It reports
+these:
+
+| Rule | Severity | Where | Reason |
+|---|---|---|---|
+| PTL-AST-003 | warning | `icechunk` asset | No `file:checksum` or `file:size`. The asset is a directory and has no single checksum. |
+| PTL-DAT-001 | info | `kerchunk` asset | The bytes are not readable because nothing is published yet. |
+| PTL-PRO-002 | info | `abi-l2-fdcc` | No `canonical` link. NOAA publishes no STAC catalog for FDC. |
 
 <!--
 When you accept one, add a row and a section explaining it, like this:
