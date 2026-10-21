@@ -7,6 +7,7 @@ from pathlib import Path
 import icechunk
 import numpy as np
 import xarray as xr
+from zarr.errors import GroupNotFoundError
 
 from .virtualize import SIGNATURE_ATTR, base_url, check_signature
 
@@ -17,9 +18,9 @@ DEFAULT_STORE = Path("local/publish/goes-18/abi-l2-fdcc/icechunk")
 
 # Scans per manifest along `time`. Without splitting, every append rewrites the
 # whole manifest of each array, so the repository grows with the square of the
-# number of commits. Measured on the two-week build (14 daily commits): the last
-# snapshot needs 13.3 MB of manifests, and the repository held 100 MB. With a
-# split of one day of CONUS scans, a daily append writes only that day's
+# number of commits. A two-week build with 14 daily commits measured this. The
+# last snapshot needed 13.3 MB of manifests, and the repository held 100 MB.
+# With a split of one day of CONUS scans, a daily append writes only that day's
 # manifests, about 80 KB per 24 scans.
 SPLIT_SCANS = 288
 
@@ -62,35 +63,41 @@ def open_repo(path: Path | str, satellite: str) -> icechunk.Repository:
     )
 
 
+def open_cube(repo: icechunk.Repository) -> xr.Dataset | None:
+    """The cube on the main branch, or None when the store has no cube yet.
+
+    Only a missing group means an empty store. Any other error, such as a lost
+    connection to S3, stops the caller. Treating it as empty would restart a
+    build from its first day and append those scans a second time.
+    """
+    try:
+        return xr.open_zarr(repo.readonly_session("main").store, consolidated=False)
+    except GroupNotFoundError:
+        return None
+
+
 def last_time(repo: icechunk.Repository) -> np.datetime64 | None:
     """Latest `time` value in the store, or None when the store is empty."""
-    try:
-        ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False, decode_times=True)
-    except Exception:
-        return None
-    return ds["time"].values.max() if ds["time"].size else None
+    ds = open_cube(repo)
+    return ds["time"].values.max() if ds is not None and ds["time"].size else None
 
 
-def stored_signature(repo: icechunk.Repository) -> dict | None:
-    """The grid and encoding signature the store was built with, or None when empty."""
-    try:
-        ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False)
-    except Exception:
-        return None
+def stored_signature(ds: xr.Dataset) -> dict:
+    """The grid and encoding signature the cube was built with."""
     raw = ds.attrs.get(SIGNATURE_ATTR)
-    return json.loads(raw) if raw else None
+    if not raw:
+        raise ValueError(f"the store has no {SIGNATURE_ATTR} attribute, so an append cannot be checked")
+    return json.loads(raw)
 
 
 def append(repo: icechunk.Repository, cube: xr.Dataset, message: str) -> str:
     """Commit the cube, or append it along time. Refuse a cube whose signature differs."""
+    stored = open_cube(repo)
     session = repo.writable_session("main")
-    if last_time(repo) is None:
+    if stored is None:
         cube.vz.to_icechunk(session.store)
     else:
-        expected = stored_signature(repo)
-        if expected is None:
-            raise ValueError(f"the store has no {SIGNATURE_ATTR} attribute, so an append cannot be checked")
-        check_signature(expected, json.loads(cube.attrs[SIGNATURE_ATTR]), message)
+        check_signature(stored_signature(stored), json.loads(cube.attrs[SIGNATURE_ATTR]), message)
         cube.vz.to_icechunk(session.store, append_dim="time")
     return session.commit(message)
 

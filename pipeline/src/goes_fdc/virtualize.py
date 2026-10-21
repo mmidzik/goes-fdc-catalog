@@ -17,11 +17,11 @@ from .keys import BUCKETS, Scan
 VARIABLES = ["Mask", "DQF", "Power", "Temp", "Area"]
 KEEP_COORDS = {"time", "x", "y"}
 
-log = logging.getLogger("goes_fdc")
+log = logging.getLogger(__name__)
 
 # A virtual cube inherits the grid and encoding of the files it references, so
-# every scan in one cube must share them. NOAA changes these over a satellite's
-# life: the first GOES-18 FDCC files (2022/131) sit at -89.5 degrees with
+# every scan in one cube must share them. NOAA changes these over the life of a
+# satellite. The first GOES-18 FDCC files (2022/131) sit at -89.5 degrees with
 # orbital_slot GOES-Test, and the later ones at -137.0. The signature holds the
 # facts that must match. A scan that differs stops the build.
 SIGNATURE_ATTR = "goes_fdc:signature"
@@ -99,9 +99,9 @@ def midpoint(scan: Scan) -> np.datetime64:
 def scan_time(scan: Scan, t) -> np.datetime64:
     """The file's mid-scan `t`, or the file-name midpoint when `t` is not usable.
 
-    Some files carry the fill value -999 in `t` and `time_bounds`, with valid
-    pixels. Two Mode 4 scans on 2025-01-20 (15:10 and 15:15 UTC) are examples.
-    A `t` outside the scan's own start and end stamps is treated the same way.
+    Some files carry the fill value -999 in `t`, with valid pixels. Decoded, that
+    is 2000-01-01T11:43:21, outside the scan's own start and end stamps. Any `t`
+    outside those stamps gets the midpoint.
     """
     lo = np.datetime64(scan.start.replace(tzinfo=None), "ns") - np.timedelta64(1, "m")
     hi = np.datetime64(scan.end.replace(tzinfo=None), "ns") + np.timedelta64(1, "m")
@@ -114,21 +114,13 @@ def scan_time(scan: Scan, t) -> np.datetime64:
 def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry) -> xr.Dataset:
     """Read headers only. The result holds byte-range references, no pixels."""
     url = f"{base_url(scan.satellite)}/{scan.key}"
-    try:
-        ds = open_virtual_dataset(
-            url, registry=registry, parser=HDFParser(), loadable_variables=["t", "x", "y"]
-        )
-        t = ds["t"].values
-    except ValueError as exc:
-        # A fill value in time_bounds stops CF time decoding for the whole file.
-        if "unable to decode time units" not in str(exc):
-            raise
-        ds = open_virtual_dataset(
-            url, registry=registry, parser=HDFParser(), loadable_variables=["t", "x", "y"],
-            decode_times=False,
-        )
-        t = None
-    t = scan_time(scan, t)
+    # Decode `t` alone. Some files carry the fill value in `time_bounds`, which
+    # stops CF time decoding of the whole file.
+    ds = open_virtual_dataset(
+        url, registry=registry, parser=HDFParser(), loadable_variables=["t", "x", "y"],
+        decode_times=False,
+    )
+    t = scan_time(scan, xr.decode_cf(ds[["t"]])["t"].values)
     sig = signature(ds)
     out = ds[VARIABLES].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
     out.attrs = {SIGNATURE_ATTR: json.dumps(sig, sort_keys=True)}

@@ -12,6 +12,7 @@ Matplotlib is in the `viz` dependency group, so it stays out of the pipeline ins
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -42,6 +43,9 @@ def main() -> None:
         totals = ds.Power.where(ds.Power > 0).sum(("y", "x")).compute()
         scan = ds.isel(time=int(totals.argmax()))
     power = scan.Power.values
+    when = str(scan.time.values)[:16]
+    if not (power > 0).any():
+        sys.exit(f"the scan at {when}Z has no fire pixels. Choose another --time.")
 
     # Center on the strongest fire pixel, with about 120 km of context each way.
     cy, cx = np.unravel_index(np.nanargmax(power), power.shape)
@@ -56,7 +60,7 @@ def main() -> None:
     ax.scatter(fx, fy, c=power[y0:y1, x0:x1][fy, fx], s=90, marker="s", cmap="inferno",
                vmin=0, vmax=200, edgecolors="white", linewidths=0.4)
     ax.set_axis_off()
-    ax.set_title(f"GOES-18 FDCC, 2 km pixels: fire radiative power, {str(scan.time.values)[:16]}Z", fontsize=8)
+    ax.set_title(f"GOES-18 FDCC, 2 km pixels: fire radiative power, {when}Z", fontsize=8)
     fig.tight_layout(pad=0.4)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(args.out)

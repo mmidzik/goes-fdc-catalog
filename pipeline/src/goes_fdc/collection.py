@@ -12,18 +12,14 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
 import pyproj
 import xarray as xr
-from obstore.store import HTTPStore
-from virtualizarr import open_virtual_dataset
-from virtualizarr.parsers import HDFParser
-from virtualizarr.registry import ObjectStoreRegistry
 
-from . import keys, store, virtualize
+from . import store, virtualize
 
 PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
 EXTENSIONS = [
@@ -38,33 +34,18 @@ EXTENSIONS = [
 SATELLITE = "G18"
 SLUG = "goes-18"
 COLLECTION = "abi-l2-fdcc"
-PRODUCT = "ABI-L2-FDCC"
 
 
 def _iso(t) -> str:
     return np.datetime_as_string(np.datetime64(t, "s"), unit="s") + "Z"
 
 
-def projection_attrs(first_time: np.datetime64) -> dict:
-    """The CF projection attributes, read from the header of the scan at `first_time`."""
-    t = datetime.fromtimestamp(int(np.datetime64(first_time, "s").astype(int)), timezone.utc)
-    hour = t.replace(minute=0, second=0, microsecond=0)
-    scans = keys.list_scans(SATELLITE, PRODUCT, hour, hour + timedelta(hours=1))
-    scan = next(s for s in scans if s.start <= t <= s.end)
-    base = virtualize.base_url(SATELLITE)
-    registry = ObjectStoreRegistry({base: HTTPStore.from_url(base)})
-    ds = open_virtual_dataset(
-        f"{base}/{scan.key}", registry=registry, parser=HDFParser(),
-        loadable_variables=["goes_imager_projection"],
-    )
-    return dict(ds["goes_imager_projection"].attrs)
-
-
 def inspect_store(repo_path: Path) -> dict:
     """Facts the collection states, all read from the store itself."""
     repo = store.open_repo(repo_path, SATELLITE)
     ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False, mask_and_scale=False)
-    crs = pyproj.CRS.from_cf(projection_attrs(ds.time.values.min()))
+    # Every scan in the cube shares one projection, recorded in the signature.
+    crs = pyproj.CRS.from_cf(store.stored_signature(ds)["projection"])
     return {
         "n_scans": int(ds.sizes["time"]),
         "start": _iso(ds.time.values.min()),

@@ -12,11 +12,11 @@ from . import keys, store, virtualize
 # one day in memory and a stopped build resumes at the next day.
 DAY = timedelta(days=1)
 
+log = logging.getLogger(__name__)
+
 
 def _utc(s: str) -> datetime:
     return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
-
-log = logging.getLogger("goes_fdc")
 
 
 def build(args: argparse.Namespace) -> None:
