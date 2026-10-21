@@ -195,15 +195,17 @@ Measured on the two-week build from a laptop (2026-10-21):
 | Measure | Value |
 |---|---|
 | Scans | 3,996 over 14 UTC days |
-| Build time | About 28 minutes, about 2.5 scans per second with 32 threads |
-| Time per day of scans | About 110 s of header reads. Listing and committing each take under 1 s |
-| Manifests in the tagged snapshot | 13.3 MB, about 3.3 KB per scan |
+| Build time | 24 minutes, about 2.8 scans per second with 32 threads |
+| Time per day of scans | 89 to 113 s of header reads. Listing and committing each take under 1 s |
+| Manifests in the tagged snapshot | 13.3 MB in 73 files, about 3.3 KB per scan |
+| Repository on disk | 20 MB, history included |
 | Raw netCDF referenced | About 226 KB per scan, never downloaded or copied |
 
-Without manifest splitting, each daily append rewrote every manifest, so the
-repository grew to 100 MB over 14 commits for 13.3 MB of live manifests. The
-store now splits manifests along `time` at 288 scans (`SPLIT_SCANS` in
-`store.py`), and a daily append writes only its own day. Earthmover used
+A first build without manifest splitting rewrote every manifest on each daily
+append, so the repository grew to 100 MB over 14 commits for 13.3 MB of live
+manifests. The store now splits manifests along `time` at 288 scans
+(`SPLIT_SCANS` in `store.py`), and a daily append writes only its own day. The
+rebuilt repository is 20 MB. Earthmover used
 manifest splitting for the same reason on GOES-16.
 
 ## Working on this repository
@@ -260,10 +262,6 @@ TODO:
   and re-run the notebook against the public catalog.
 - Decide the license value for the catalog.
 - Run the update workflow once, then decide whether to schedule it.
-- Before the first upload, decide whether to keep the repository history. The
-  local repository holds about 113 MB, most of it manifests from before the
-  split. `Repository.expire_snapshots` and `Repository.garbage_collect` reduce
-  it to the tagged snapshot.
 
 ## Acknowledgements
 
