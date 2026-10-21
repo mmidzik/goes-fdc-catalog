@@ -48,7 +48,7 @@ target = ROOT / config["publish_dir"]
 MIN_VERSION = (0, 1, 8)
 MAX_VERSION = (0, 2, 0)
 SPEC = "rashid>=0.1.8,<0.2.0"
-INSTALL = f"python -m pip install '{SPEC}'"
+INSTALL = "uv sync --group dev"
 
 
 def fail(message: str) -> None:

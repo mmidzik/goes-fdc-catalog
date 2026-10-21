@@ -82,11 +82,13 @@ and the gate prints how many objects took the exemption.
 
 The exemption expires on its own. The gate fails once stac-check stops emitting
 the crash on a collection or item that declares the profile schema, and tells
-you to delete both the exemption and this section. CI installs stac-check
-unpinned, so the next release triggers that without anyone watching for it.
+you to delete both the exemption and this section. CI installs stac-check from
+`uv.lock`, so a new release reaches CI only when the lock file moves. Run
+`uv lock --upgrade-package stac-check` to take it. `pyproject.toml` sets no
+range for stac-check, so that command always takes the newest release.
 
 `tests/test_stac_valid.py` also fails when stac-check is absent, and prints the
-install command. It takes no version floor and no pin. The rashid floor exists
-because that gate asserts four named rules. This gate asserts no stac-check
-rule. It needs the opposite property. A pin holds the exemption open after the
-upstream fix ships.
+install command. `pyproject.toml` sets no version range for stac-check. The
+rashid floor exists because that gate asserts named rules. This gate asserts no
+stac-check rule. It needs the opposite property. A range holds the exemption
+open after the upstream fix ships.
