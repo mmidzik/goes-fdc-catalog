@@ -14,14 +14,18 @@ widened allow-list is a false claim about what this catalog conforms to.
 
 ## The rashid version floor
 
-The gate needs rashid `>=0.1.5,<0.2.0`. It reads `rashid --version` and fails
+The gate needs rashid `>=0.1.8,<0.2.0`. It reads `rashid --version` and fails
 outside that range. It also fails when rashid is absent, and prints the install
 command. A skip would report a green run for a catalog that no validator read.
 
-The floor is 0.1.5 because rules PTL-LNK-007, PTL-LNK-008, PTL-LNK-009 and
-PTL-AST-006 do not exist below it. The gate asserts all four. An older rashid
-reports a pass for a catalog that it never checked against them. The same range
-is in `portolan-cli/pyproject.toml` and in the CI install step.
+The catalog declares Portolan v0.2.0. The floor is 0.1.8 because that is the
+first rashid release that carries the v0.2.0 rules. An older rashid reports an
+error for a `self` link and for an absolute structural `href`, which v0.2.0
+allows.
+
+Three places name this range: `tests/test_conformance.py`, the `dev` group in
+`pyproject.toml`, and this page. Change all three together. CI installs from
+`uv.lock`, so the lock file must resolve inside the range.
 
 The upper bound stops an unreviewed 0.2 rule set from changing what this gate
 means. Raise both bounds together when you move to 0.2, and read the new rules

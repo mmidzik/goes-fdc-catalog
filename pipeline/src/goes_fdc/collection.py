@@ -26,7 +26,7 @@ from virtualizarr.registry import ObjectStoreRegistry
 
 from . import keys, store, virtualize
 
-PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.1.1/schema.json"
+PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
 EXTENSIONS = [
     PORTOLAN_SCHEMA,
     "https://stac-extensions.github.io/zarr/v1.1.0/schema.json",
