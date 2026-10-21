@@ -123,9 +123,9 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 "url": "https://www.goes-r.gov/",
             },
             {
-                "name": "mmidzik (personal repository)",
+                "name": "Maya Midzik",
                 "roles": ["host", "processor"],
-                "url": "https://github.com/mmidzik/goes-fdc-catalog/issues",
+                "url": "https://github.com/mmidzik/goes-fdc-catalog",
             },
         ],
         "extent": {
@@ -198,7 +198,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             },
         },
         "links": [
-            {"rel": "root", "href": "../../catalog.json", "type": "application/json", "title": "GOES ABI (NOAA GOES-R)"},
+            {"rel": "root", "href": "../../catalog.json", "type": "application/json", "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"},
             {"rel": "parent", "href": "../catalog.json", "type": "application/json", "title": "GOES-18"},
             {"rel": "describedby", "href": "./README.md", "type": "text/markdown", "title": "Collection README"},
             {"rel": "agents", "href": "./AGENTS.md", "type": "text/markdown", "title": "Collection agent guide"},

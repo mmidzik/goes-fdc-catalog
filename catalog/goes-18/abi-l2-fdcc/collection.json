@@ -32,12 +32,12 @@
       "url": "https://www.goes-r.gov/"
     },
     {
-      "name": "mmidzik (personal repository)",
+      "name": "Maya Midzik",
       "roles": [
         "host",
         "processor"
       ],
-      "url": "https://github.com/mmidzik/goes-fdc-catalog/issues"
+      "url": "https://github.com/mmidzik/goes-fdc-catalog"
     }
   ],
   "extent": {
@@ -71,7 +71,7 @@
       2000
     ]
   },
-  "updated": "2026-10-21T18:37:13Z",
+  "updated": "2026-10-21T18:38:10Z",
   "cube:dimensions": {
     "time": {
       "type": "temporal",
@@ -233,7 +233,7 @@
       "rel": "root",
       "href": "../../catalog.json",
       "type": "application/json",
-      "title": "GOES ABI (NOAA GOES-R)"
+      "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"
     },
     {
       "rel": "parent",
