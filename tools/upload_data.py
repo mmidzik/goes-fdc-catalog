@@ -72,7 +72,7 @@ PUBLISHABLE_SUFFIXES = {
 # Icechunk repository is a tree of files with no suffix (`refs/`, `snapshots/`,
 # `manifests/`, `chunks/`). It is useless with any of them missing. A component
 # name is exact, so a directory called `icechunk-scratch` stays barred.
-PUBLISHABLE_TREES = {"icechunk", "kerchunk"}
+PUBLISHABLE_TREES = {"icechunk"}
 
 
 def data_root(config: dict[str, str], root: Path = ROOT) -> Path:
@@ -204,7 +204,7 @@ def main() -> int:
     try:
         session = aws_session(config)
     except ImportError:
-        sys.exit("boto3 is required to upload. Run: uv sync --group publish")
+        sys.exit("boto3 is required to upload. Run: uv sync --group upload")
     except Exception as exc:  # noqa: BLE001 - stop before any upload
         sys.exit(f"cannot build an AWS session: {exc}")
 

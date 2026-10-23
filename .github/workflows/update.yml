@@ -1,0 +1,100 @@
+name: update
+
+# Append new GOES-18 FDCC scans to the published Icechunk store, regenerate the
+# collection, and publish the catalog metadata.
+#
+# DRAFT. Manual trigger only, and not yet run. It needs:
+#   - the Source Cooperative account name in catalog.publish.yaml. The
+#     placeholder makes publish.py refuse --confirm, so a run stops there.
+#   - SOURCE_COOP_ACCESS_KEY_ID and SOURCE_COOP_SECRET_ACCESS_KEY in the
+#     source-coop environment.
+#   - conditional writes on Source Cooperative, which Icechunk needs to
+#     commit. That is not yet verified.
+#
+# The job appends in place to the store at write_prefix. It does not stage a
+# copy and sync it, because a partial sync of an Icechunk repo can leave refs
+# that point at snapshots that are not uploaded yet.
+#
+# The regenerated collection.json is uploaded as an artifact. Commit it to the
+# repository after the run, so git matches the published catalog.
+#
+# To run it on a schedule later, add a `schedule:` trigger next to
+# workflow_dispatch.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "UTC start, ISO 8601, e.g. 2026-10-01T00:00"
+        required: true
+      end:
+        description: "UTC end, exclusive"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  # Icechunk takes one writer per commit. Never run two appends at once.
+  group: update-store
+  cancel-in-progress: false
+
+jobs:
+  append:
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    environment: source-coop
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install from the lock file
+        run: uv sync --frozen --group upload
+
+      - name: Resolve the store location
+        id: target
+        run: |
+          uv run python - <<'EOF' >> "$GITHUB_OUTPUT"
+          import sys
+          sys.path.insert(0, "tools")
+          from publish import load_config, unset_placeholders
+          config = load_config()
+          if unset_placeholders(config):
+              sys.exit("catalog.publish.yaml still carries placeholders")
+          prefix = config["write_prefix"].rstrip("/")
+          print(f"store={prefix}/goes-18/abi-l2-fdcc/icechunk")
+          print(f"public_base={config['public_base'].rstrip('/')}")
+          EOF
+
+      - name: Append scans
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.SOURCE_COOP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SOURCE_COOP_SECRET_ACCESS_KEY }}
+          START: ${{ inputs.start }}
+          END: ${{ inputs.end }}
+          STORE: ${{ steps.target.outputs.store }}
+        run: uv run goes-fdc build --start "$START" --end "$END" --store "$STORE"
+
+      - name: Regenerate the collection
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.SOURCE_COOP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SOURCE_COOP_SECRET_ACCESS_KEY }}
+          STORE: ${{ steps.target.outputs.store }}
+          PUBLIC_BASE: ${{ steps.target.outputs.public_base }}
+        run: uv run python -m goes_fdc.collection --store "$STORE" --public-base "$PUBLIC_BASE"
+
+      - name: Publish the catalog metadata
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.SOURCE_COOP_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.SOURCE_COOP_SECRET_ACCESS_KEY }}
+        run: uv run python tools/publish.py --confirm
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: collection
+          path: catalog/goes-18/abi-l2-fdcc/collection.json

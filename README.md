@@ -9,10 +9,10 @@ Catalog metadata lives in this repository. The pixel data stays in NOAA's public
 it. The catalog relies on that S3 copy as its data source. CI validates every
 change to the metadata.
 
-> **Status: pilot. Publishing to Source Cooperative is TODO.** Nothing is
-> published. The storage path in `catalog.publish.yaml` is provisional, and no
-> public catalog URL exists yet. Stage 1 runs locally on the Palisades fire
-> window. See [Status and TODO](#status-and-todo).
+> **Status: demo, built locally. Publishing to Source Cooperative is TODO.**
+> The catalog covers two weeks of full-scene GOES-18 CONUS scans, 2025-01-07
+> to 2025-01-20 UTC. The same pipeline extends the cube forward or back in
+> time. See [Status and TODO](#status-and-todo).
 
 - **Published catalog**: TODO, not on Source Cooperative yet
 - **STAC root**: TODO, same
@@ -21,10 +21,16 @@ change to the metadata.
   produce the data and remain the authoritative source)
 - **Design**: [docs/architecture.md](docs/architecture.md)
 
-This catalog is a reference implementation for
-[portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132),
-which defers a normative Zarr profile until real Zarr datasets have been tested
-in catalogs. The Zarr assets are outside the Portolan conformance surface.
+This catalog is a first test of Zarr in a Portolan catalog. Portolan defers a
+normative Zarr profile until real Zarr datasets have been tested in catalogs
+([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
+The Zarr assets are outside the Portolan conformance surface. What this demo
+found about Zarr in a Portolan catalog, including what the metadata cannot yet
+express, is in [docs/architecture.md section 13](docs/architecture.md#13-zarr-in-portolan-findings-from-this-demo).
+
+To see it work, run [examples/palisades-frp.ipynb](examples/palisades-frp.ipynb).
+It starts at `catalog/catalog.json` and finds the cube through the collection
+metadata. The plot shows fire radiative power over the Palisades burn area.
 
 Start with [docs/architecture.md](docs/architecture.md) for the data access
 paths, components, flow, and open questions. The collection's own README and
@@ -78,33 +84,35 @@ Where the data lives:
 No full-archive vector (point or polygon) form of GOES FDC exists in any of
 these. That is why this catalog keeps the raster grid and virtualizes it.
 
-## What it will publish
+## What it publishes
 
-One collection to start, `goes-18/abi-l2-fdcc`: the CONUS FDC product from
-GOES-18. Each scan is a 1500 × 2500 grid on the ABI geostationary fixed grid,
-about every 5 minutes. Five variables: `Mask`, `DQF`, `Power`, `Temp`, `Area`.
+One collection, `goes-18/abi-l2-fdcc`: the CONUS FDC product from GOES-18. Each
+scan is a 1500 × 2500 grid on the ABI geostationary fixed grid, about every 5
+minutes. Five variables: `Mask`, `DQF`, `Power`, `Temp`, `Area`.
 
-The pilot window is the Palisades fire, 2025-01-07 to 2025-01-31 (verify the end
-date). The catalog later grows to the full GOES-18 record and to other
-satellites, sectors, and products. Names follow
-`abi-<level>-<product><sector>` under one sub-catalog per satellite.
+The demo window is two weeks, 2025-01-07 to 2025-01-20 UTC. Every scan is the
+full CONUS scene. The window covers the January 2025 Los Angeles fires, which
+the example notebook uses. The pipeline appends by time, so the same cube grows to a longer window
+without a rebuild. The next step is two years, built on a cloud machine. Names
+follow `abi-<level>-<product><sector>` under one sub-catalog per satellite, so
+other satellites and sectors can be added as siblings.
 
-The cube is published two ways, from the same references:
+The data asset is one Icechunk repository:
 
 | Asset | Reader needs | Notes |
 |---|---|---|
-| Icechunk repo | `icechunk`, `zarr`, `xarray` | Transactional, appendable, detects a changed NOAA file |
-| Kerchunk references | `xarray`, `kerchunk`, `fsspec`, `aiohttp`, `requests` | No Icechunk dependency. JSON in the initial smoke-test catalog. Parquet for the full catalog, since JSON is about 50 KB per scan |
+| `icechunk` | `icechunk`, `zarr`, `xarray` | Transactional, appendable, detects a changed NOAA file |
 
-Both hold manifests, never pixels. Every read fetches chunk byte ranges from
-NOAA.
+It holds manifests, never pixels. Every read fetches chunk byte ranges from
+NOAA. The pilot also built Kerchunk references, which the demo drops. They
+cannot detect a changed NOAA file, the JSON form costs about 51 KB per scan, and
+one parquet for a growing cube is an unsolved export.
 
 The trade-off: the `icechunk` asset is an Icechunk repository (`repo`,
-`snapshots/`, `manifests/`, `chunks/`, `transactions/`). A generic Zarr client
-that does not know Icechunk cannot open it by URL. The `kerchunk` asset is a
-reference file that opens through fsspec's reference filesystem. Whether Portolan's
-Zarr profile should recognize virtual stores as their own asset kind is a
-question for
+`snapshots/`, `manifests/`, `transactions/`). A generic Zarr client that does
+not know Icechunk cannot open it by URL. The reader must also authorize NOAA's
+bucket as a virtual chunk container, and no STAC field says so. Whether
+Portolan's Zarr profile should describe virtual stores is a question for
 [portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132).
 This catalog is a test case for it.
 
@@ -116,8 +124,10 @@ This catalog is a test case for it.
 catalog has no copy of its own, so it works only while those objects stay at
 those keys and keep their bytes. That has three consequences:
 - If NOAA or AWS moves or deletes a file, the reference breaks. The Icechunk repo
-  detects a changed file. The Kerchunk references do not, and can return wrong
-  bytes silently.
+  detects a changed file. Each chunk read sends `If-Unmodified-Since` with the
+  time the reference was written. NOAA's bucket answers `412` for a file changed
+  after that time, and Icechunk stops the read. A re-upload of the same bytes
+  also stops it.
 - The GOES-16 and GOES-17 buckets stopped growing (2025/097 and 2023/010), so
   their references are stable. GOES-18 and GOES-19 are live and grow every scan.
 - Other mirrors of the same files (Google Cloud, Earth Engine, NCEI) are not
@@ -131,8 +141,18 @@ copies none of it. FIRMS converts to GeoParquet because its source is already a
 list of detections. GOES FDC is not.
 
 **No server.** Readers hit static files on Source Cooperative and NOAA's bucket.
-The update job is a scheduled GitHub Action, not a hosted service. A later
-event-driven version could subscribe to NOAA's `NewGOES18Object` SNS topic.
+The update job (`.github/workflows/update.yml`) is a GitHub Action with a manual
+trigger, not a hosted service. It is a draft and has not run. A schedule turns
+it into a live mirror. A later event-driven version could subscribe to NOAA's
+`NewGOES18Object` SNS topic.
+
+**One grid per cube.** A virtual cube inherits the grid and encoding of the
+files it references. NOAA changes these over a satellite's life: the first
+GOES-18 FDCC files (2022/131) sit at `-89.5` degrees as `GOES-Test`, and later
+files sit at `-137.0`. Each scan gets a signature (projection, axes, chunks,
+codecs, dtype, fill value, scaling). A build stops when a scan's signature
+differs from the cube's. Earthmover split the GOES-16 archive into groups for
+the same reason.
 
 **Zarr outside conformance.** The collection says so. rashid reports no error
 for the Zarr assets. `docs/conformance.md` lists the warnings it reports and
@@ -156,37 +176,60 @@ stamps in the filename.
 | Module | Does |
 |---|---|
 | `pipeline/src/goes_fdc/keys.py` | Parses NOAA key names and lists scans in a time window with an anonymous S3 listing. |
-| `pipeline/src/goes_fdc/virtualize.py` | Reads each netCDF header with VirtualiZarr (`HDFParser`) and stacks scans along `time`. |
-| `pipeline/src/goes_fdc/store.py` | Appends the new time steps to the Icechunk repo and exports Kerchunk parquet. |
-| `pipeline/src/goes_fdc/cli.py` | The `goes-fdc build` command. Resumable: scans already in the store are skipped. |
+| `pipeline/src/goes_fdc/virtualize.py` | Reads each netCDF header with VirtualiZarr (`HDFParser`), checks each scan's grid and encoding signature, and stacks scans along `time`. |
+| `pipeline/src/goes_fdc/store.py` | Opens the Icechunk repo (local path or `s3://`) and appends new time steps. Refuses a cube whose signature differs from the store's. |
+| `pipeline/src/goes_fdc/cli.py` | The `goes-fdc build` command. One commit per UTC day. Resumable: scans already in the store are skipped. |
+| `pipeline/src/goes_fdc/collection.py` | Writes `collection.json` from facts read from the store. |
+| `pipeline/src/goes_fdc/thumbnail.py` | Renders the collection thumbnail from one scan. |
 | `tools/publish.py` | Syncs `catalog/` to the bucket. Template-provided; never widened beyond `catalog/`. |
 | `tools/upload_data.py` | Uploads staged data files. Template-provided. |
 
 ```bash
 uv sync
-uv run goes-fdc build --start 2025-01-07T18:00 --end 2025-01-07T20:00 --out local/smoke
+uv run goes-fdc build --start 2025-01-07T00:00 --end 2025-01-21T00:00
 ```
 
 The bucket listing is the index. NOAA keys are
 `ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/<filename>`, and one anonymous list call per hour
 prefix returns the scans. A second run with the same window adds nothing. NOAA
-needs no credentials. A full backfill of GOES-18 FDCC since 2023-01-04 is about
-400,000 files, header reads only. Its cost is not measured yet.
+needs no credentials, and reads from the public bucket cost nothing. The store
+is built in place at `local/publish/goes-18/abi-l2-fdcc/icechunk`, the path
+that `tools/upload_data.py` uploads.
+
+Measured on the two-week build from a laptop (2026-10-21):
+
+| Measure | Value |
+|---|---|
+| Scans | 3,996 over 14 UTC days |
+| Build time | 24 minutes, about 2.8 scans per second with 32 threads |
+| Time per day of scans | 89 to 113 s of header reads. Listing and committing each take under 1 s |
+| Manifests in the tagged snapshot | 13.3 MB in 73 files, about 3.3 KB per scan |
+| Repository on disk | 20 MB, history included |
+| Raw netCDF referenced | About 226 KB per scan, never downloaded or copied |
+
+A first build without manifest splitting rewrote every manifest on each daily
+append, so the repository grew to 100 MB over 14 commits for 13.3 MB of live
+manifests. The store now splits manifests along `time` at 288 scans
+(`SPLIT_SCANS` in `store.py`), and a daily append writes only its own day. The
+rebuilt repository is 20 MB. Earthmover used
+manifest splitting for the same reason on GOES-16.
 
 ## Working on this repository
 
 Python dependencies use [uv](https://docs.astral.sh/uv/). It creates `.venv` and
 installs the locked versions.
 
-Build the initial smoke-test catalog from a store, then stage and upload it:
+Write the collection from the store, then dry-run the uploads:
 
 ```bash
-uv run python -m goes_fdc.collection --store local/smoke/icechunk \
+uv run python -m goes_fdc.collection \
     --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
-uv run --group viz python -m goes_fdc.thumbnail --store local/smoke/icechunk \
+uv run --group viz python -m goes_fdc.thumbnail --time 2025-01-08T06:00 \
     --out catalog/goes-18/abi-l2-fdcc/thumbnail.png
 uv run python tools/publish.py          # dry run: catalog metadata and the root self link
-uv run python tools/upload_data.py      # dry run: staged Icechunk and Kerchunk
+uv run python tools/upload_data.py      # dry run: the Icechunk repo
+uv run --group examples jupyter nbconvert --to notebook --execute --inplace \
+    examples/palisades-frp.ipynb
 ```
 
 ```bash
@@ -203,29 +246,41 @@ Data files never enter git. `.gitignore` blocks the common formats, plus
 ## Status and TODO
 
 Done:
-- Local pipeline over the NOAA buckets, tested on 24 scans (2025-01-07 18:00 to
-  20:00 UTC): append, dedupe, and a read-back that matches the raw netCDF.
-- Initial smoke-test catalog built from those 24 scans: root, `goes-18`, and the
-  `abi-l2-fdcc` collection with Icechunk and Kerchunk assets, thumbnail, README
-  and AGENTS.md at each level. All gates pass and `rashid check --schema` reports
-  0 errors. Staged for upload under `local/publish/` (about 1.4 MB).
-- Both access recipes tested against a local copy served over HTTP with Range
-  support, with NOAA read live.
+- Local pipeline over the NOAA buckets: append, resume, one commit per day, and
+  a grid and encoding check on every scan.
+- The two-week cube, built locally: 3,996 scans, tagged `demo-2025-01` in the
+  Icechunk repository.
+- The catalog, with the root, `goes-18`, and the `abi-l2-fdcc` collection with the
+  Icechunk asset, thumbnail, README and AGENTS.md at each level.
+- `examples/palisades-frp.ipynb`, which reads the cube through the catalog.
 
 TODO:
+- **Extend to two years** on a cloud machine. The pipeline is the same. Only
+  the window and the machine change.
 - **Publish to Source Cooperative.** The target is a personal account. Its name
   is the `<ACCOUNT>` placeholder in `catalog.publish.yaml`, in the collection
   asset hrefs, and in the published READMEs and AGENTS.md files. Set it in all
   of them, regenerate the collection, then fill in the links at the top of this
   file. `tools/publish.py` refuses `--confirm` while the placeholder is set.
-  Install the upload dependency with `uv sync --group publish`. After the upload,
+  Install the upload dependency with `uv sync --group upload`. Check that Source
+  Cooperative supports the conditional writes Icechunk needs. After the upload,
   run `rashid check catalog --schema --data --live --live-base-url <public base>`
-  and re-test the access recipes against the real URLs.
-- Build the Palisades window and check the FRP curve against the published
-  figure.
+  and re-run the notebook against the public catalog.
 - Decide the license value for the catalog.
-- Hourly update job on GitHub Actions.
-- Settle the Kerchunk export so one parquet covers the whole cube.
+- Run the update workflow once, then decide whether to schedule it.
+
+## Acknowledgements
+
+Earthmover's post
+[Cloud-optimizing the GOES-16 archive as Virtual Zarr](https://www.earthmover.io/blog/virtual-zarr/)
+(Tom Nicholas, June 2026) is the source of the approach in this repository. The
+post makes the GOES-16 archive available as one virtual Zarr store with
+VirtualiZarr and Icechunk, and it copies none of the data. This catalog uses the
+same method for the GOES FDC product and publishes the result as a Portolan
+catalog. Thank you to Tom Nicholas and the Earthmover team.
+
+Thank you also to the NOAA Open Data Dissemination program and the AWS Open
+Data program, which keep the GOES files in public buckets that anyone can read.
 
 ## License
 

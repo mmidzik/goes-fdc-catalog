@@ -1,12 +1,14 @@
 # Architecture: GOES ABI FDC as a virtual Zarr Portolan catalog
 
-Status: accepted for stage 1. Pilot scope: GOES-18 `ABI-L2-FDCC`, Palisades fire window. Date: 2026-10-06.
+Status: demo. Scope: GOES-18 `ABI-L2-FDCC`, full CONUS scene, 2025-01-07 to 2025-01-20, built locally. The pipeline extends the window. Updated 2026-10-21.
 
 The pipeline code is in `pipeline/`. The published catalog is in `catalog/`.
 
 ## 1. Summary
 
 Publish NOAA's GOES ABI Fire/Hot Spot Characterization (FDC) as a Portolan catalog whose main asset is a **virtual Zarr cube**. The cube holds byte-range references into NOAA's raw netCDF in `s3://noaa-goes18`. We copy no pixel data and run no server. Everything we host is static files on Source Coop (a personal account, name pending).
+
+The approach comes from Earthmover's GOES-16 virtual Zarr work, described in [Cloud-optimizing the GOES-16 archive as Virtual Zarr](https://www.earthmover.io/blog/virtual-zarr/). This design applies it to FDC, and replaces Arraylake as the discovery layer with a Portolan catalog on Source Coop.
 
 This catalog is a Zarr reference implementation for [portolan-spec #132](https://github.com/portolan-sdi/portolan-spec/issues/132), which defers a normative Zarr profile until real Zarr datasets have been tested in catalogs. Zarr stays outside Portolan's conformance surface, and the README says so.
 
@@ -31,15 +33,15 @@ How a user reads GOES FDC through this catalog:
 |---|---|---|
 | A. Browse | A STAC client or the Portolan browser | `catalog.json`, `collection.json`, README, AGENTS.md on Source Coop |
 | B. Icechunk (primary) | `icechunk`, `zarr`, `xarray`. Anonymous read of Source Coop plus the NOAA prefix | Repo manifests on Source Coop, then chunk byte ranges from NOAA netCDF |
-| C. Kerchunk parquet | `fsspec`, `xarray`. No Icechunk dependency | Reference parquet on Source Coop, then chunk byte ranges from NOAA netCDF |
-| D. Raw | Anything that reads netCDF | `source`-role asset (`https` href, `s3` alternate) per scan |
+| C. Raw | Anything that reads netCDF | `source`-role asset (`https` href, `s3` alternate) per scan |
 
 Notes:
 - Data bytes always come from NOAA. We host only manifests and metadata.
 - Both Zarr assets carry `xarray:open_kwargs`, so a client knows the engine and consolidation without guessing.
 - `https` is the primary href form (spec). `s3://` goes in alternate-assets.
 - Checked 2026-10-06: `https://noaa-goes18.s3.amazonaws.com/...` answers Range requests with 206 and allows CORS `*` for GET. Anonymous listing works.
-- If NOAA rewrites or removes a file, Icechunk's virtual chunk checks catch the change. Kerchunk does not.
+- If NOAA rewrites or removes a file, Icechunk's virtual chunk checks catch the change.
+- The pilot also built Kerchunk references (path C in an earlier draft). The demo drops them. They cannot detect a changed file. The JSON form costs about 51 KB per scan, and one parquet for a growing cube is an unsolved export. See section 12.
 
 ## 4. Components and compute
 
@@ -47,7 +49,7 @@ Notes:
  +--------------+   +--------------+   +-----------+   +-----------+
  | Virtualizer  |-->| Store writer |-->| Catalog   |-->| Publisher |
  | list + open  |   | Icechunk +   |   | builder   |   | sync to   |
- | VirtualiZarr |   | Kerchunk pq  |   | STAC/docs |   | Source    |
+ | VirtualiZarr |   | (append,     |   | STAC/docs |   | Source    |
  | HDFParser    |   +--------------+   +-----------+   | Coop      |
  +--------------+                                      +-----------+
       ^
@@ -59,7 +61,7 @@ There is no separate indexer. The bucket listing is the index: one anonymous lis
 | Component | Job | Tool |
 |---|---|---|
 | Virtualizer | List new keys under `ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/` since the store's last `time` (`obstore`, anonymous), parse filenames (scan mode, `s`/`e`/`c` stamps), open each netCDF as a virtual dataset (header range reads, no pixel reads), concatenate along `time` | **VirtualiZarr** (`open_virtual_dataset`, `HDFParser`), `obstore` |
-| Store writer | Append the new time steps as one transaction. Export the same references as Kerchunk parquet | **Icechunk** (`to_icechunk`), VirtualiZarr Kerchunk export |
+| Store writer | Check each scan's grid and encoding signature against the store. Append the new time steps as one transaction per UTC day | **Icechunk** (`to_icechunk`) |
 | Catalog builder | Write `catalog.json`, `collection.json`, items if any, `README.md`, `AGENTS.md`, thumbnail, `render` hints, `updated` | `portolan` CLI where it supports this, otherwise a script |
 | Publisher | Upload the Icechunk repo, parquet refs and STAC files | S3-compatible sync to Source Coop |
 | Scheduler | Hourly cron | GitHub Actions |
@@ -68,7 +70,7 @@ Hosting split:
 
 | On Source Coop (static files) | On compute we own |
 |---|---|
-| Icechunk repo, Kerchunk parquet refs, STAC JSON, README, AGENTS.md, thumbnail | The append job (list, virtualize, commit, upload) on GitHub Actions |
+| Icechunk repo, STAC JSON, README, AGENTS.md, thumbnail | The append job (list, virtualize, commit, upload) on GitHub Actions |
 | | One-off backfill run on a laptop or larger runner |
 
 - Nothing is always on. The Icechunk repo holds the state (last `time`), so there is no database.
@@ -81,7 +83,7 @@ Compute budget (to be measured in the pilot):
 - Backfill: GOES-18 FDCC since 2023-01-04 is on the order of 400k files. Header-only, so parallelize with a thread pool or Dask. Plan for hours on one machine. Run once, locally or on a larger runner.
 - Peak memory is small because no pixel data loads.
 
-Use VirtualiZarr for everything about references: parsing, combining, the manifest model, writing Icechunk and Kerchunk. Custom code covers only listing, naming, STAC writing and publishing.
+Use VirtualiZarr for everything about references: parsing, combining, the manifest model, writing Icechunk. Custom code covers only listing, naming, STAC writing and publishing.
 
 ## 5. Flow
 
@@ -89,15 +91,13 @@ Backfill (once):
 1. Virtualizer lists all FDCC keys for the period.
 2. It builds virtual datasets in batches (for example one day per batch).
 3. Store writer commits each batch to the Icechunk repo. Pilot day first.
-4. Export Kerchunk parquet.
-5. Catalog builder writes metadata. Publisher uploads.
+4. Catalog builder writes metadata. Publisher uploads.
 
 Incremental (hourly):
 1. Virtualizer lists the last few hours and diffs against the store's last `time` value.
 2. It opens only new files.
 3. Store writer appends to the **level-0 group** (not the store root). One commit per run.
 4. Update `updated` in the root catalog and collection. Publisher syncs changed files.
-5. Re-export Kerchunk parquet daily, not hourly.
 
 Failure handling: a failed run commits nothing, since Icechunk commits are transactional. The next run recomputes the diff.
 
@@ -106,13 +106,13 @@ Trigger model: v1 is pull-based (hourly cron, data lands up to an hour late). A 
 ## 6. Catalog layout
 
 ```
-goes-abi/                       root catalog, mirror of NOAA GOES-R ABI
+goes-fdc/                       root catalog, mirror of NOAA GOES-R ABI FDC
   README.md  AGENTS.md          states the naming rule and planned siblings
   goes-18/                      sub-catalog per satellite (slot and dates in README)
     abi-l2-fdcc/                collection
       collection.json           providers, license, `via`, `updated`, datacube dims
       README.md  AGENTS.md
-      assets: icechunk (zarr), kerchunk (parquet refs), thumbnail
+      assets: icechunk (zarr), thumbnail
 ```
 
 - Per-satellite sub-catalogs avoid the East and West handoffs (GOES-17 to 18 on 2023-01-04, GOES-16 to 19 on 2025-04-07).
@@ -133,9 +133,9 @@ Kept as is:
 - Agent norms, writing hook, Vale.
 
 Added:
-- `pipeline/` outside `catalog/`: the VirtualiZarr job (list, virtualize, append, export Kerchunk) and its tests.
-- Extend the `upload_data.py` suffix allow-list for Kerchunk parquet and the Icechunk repo files.
-- Stage 2: the job writes the Icechunk repo straight to Source Coop. Do not stage and sync it, because a partial upload can break commit atomicity. Kerchunk refs and STAC go through the template tools.
+- `pipeline/` outside `catalog/`: the VirtualiZarr job (list, virtualize, check, append) and its tests.
+- Extend the `upload_data.py` allow-list to admit the Icechunk repo, whose files have no suffix.
+- Stage 2: the job writes the Icechunk repo straight to Source Coop. Do not stage and sync it, because a partial upload can break commit atomicity. STAC goes through the template tools. `goes-fdc build --store s3://...` appends in place.
 - One GitHub Actions workflow for the hourly job.
 - Leave "how the catalog points back at this repo" undecided, as the template does (portolan-spec#145).
 
@@ -175,32 +175,35 @@ Follows the provisional direction in #132:
 
 **Stage 1: local, Palisades fire window (no cloud resources).** Window: GOES-18 FDCC, 2025-01-07 to 2025-01-31 UTC (ignition about 18:10Z on 2025-01-07, containment around 2025-01-31, verify the end date). First pass is 2025-01-07 to 2025-01-09 (about 860 scans) to prove the pipeline, then widen to the full window (about 7,200 scans). The collection's temporal extent is the window for now and grows into the full catalog in stage 2.
 1. Read the reference catalog, #132, #128, the STAC `zarr` extension, and `portolan --help`.
-2. Create the repo from `portolan-catalog-template`. Add `pipeline/` (`uv`, VirtualiZarr, Icechunk, obstore, xarray). Stage 1 writes the Icechunk repo and Kerchunk parquet to a gitignored local directory, and STAC files into `catalog/`.
-3. List and virtualize GOES-18 FDCC for the first-pass dates from the public bucket. Concatenate along `time`. Commit to a local Icechunk repo, export Kerchunk parquet. Settle open questions 1 to 3 (virtualizability, `proj`, virtual chunk access).
-4. Verify: read back through both paths and compare `Power`, `Mask`, `DQF`, `Temp`, `Area` against a direct netCDF read for sampled scans. Confirm the store holds no pixel bytes. Reproduce the FDCC summed-FRP curve over the Palisades box for 18:00 to 21:00Z 2025-01-07 and compare with `goes-abi.md` (first M2 detection in FDCM2 was 18:27:57Z, so check FDCC's first detection time too).
+2. Create the repo from `portolan-catalog-template`. Add `pipeline/` (`uv`, VirtualiZarr, Icechunk, obstore, xarray). Stage 1 writes the Icechunk repo to a gitignored local directory, and STAC files into `catalog/`.
+3. List and virtualize GOES-18 FDCC for the first-pass dates from the public bucket. Concatenate along `time`. Commit to a local Icechunk repo. Settle open questions 1 to 3 (virtualizability, `proj`, virtual chunk access).
+4. Verify: read back through both paths and compare `Power`, `Mask`, `DQF`, `Temp`, `Area` against a direct netCDF read for sampled scans. Confirm the store holds no pixel bytes.
 5. Test the append: add the next days to the existing store and confirm they land in the level-0 group and the store still opens. Time the run to size the cron job and the backfill.
 6. Generate the catalog locally (root, `goes-18`, `abi-l2-fdcc`, README, AGENTS.md, thumbnail, `render` hints). Run `portolan` structural and metadata validation. Record what the validator and browser do with the Zarr assets.
 
 Gate: stage 2 starts only when stage 1 passes. Report findings on #132.
 
-**Stage 2: cloud and cron.**
-7. Move the store and catalog to the personal Source Coop account. Confirm conditional writes, CORS and Range behavior.
-8. Run the job on GitHub Actions hourly with Source Coop credentials in a secret.
-9. Backfill from 2023-01-04 (one-off) to grow the Palisades window into the full GOES-18 FDCC catalog, then turn on the hourly job.
-10. A human submits the portolan-registry PR.
+**Stage 1b: the two-week demo (done locally, 2026-10-21).** Two weeks of full CONUS scans, 2025-01-07 to 2025-01-20. The window covers the January 2025 Los Angeles fires, the example in the notebook. Kerchunk dropped. A grid and encoding signature check on every scan. One commit per UTC day. `examples/palisades-frp.ipynb` reads the cube through the catalog. The update workflow is drafted with a manual trigger and has not run.
+
+**Stage 2: two years, then publish.**
+7. Extend the window to two years on a cloud machine, with the same `goes-fdc build` command. Measure manifest size and open time, and decide on Icechunk manifest splitting from those numbers.
+8. Move the store and catalog to the personal Source Coop account. Confirm conditional writes, CORS and Range behavior.
+9. Run the update workflow once. Decide whether to schedule it.
+10. A human submits the portolan-registry PR and reports findings on #132.
 
 **Later:** SNS trigger, other satellites and sectors, optional COG endpoint and GeoParquet view.
 
 ## 11. Verification
 
 - Stage 1: open the local store through paths B and C and read the same scan. Values match a direct netCDF read.
-- Stage 1: summed FRP over the Palisades box for 18:00 to 21:00Z 2025-01-07 from the store matches the FDCC curve in `goes-abi.md`.
 - Stage 2: from a clean environment with no credentials, open the published store through paths B and C.
 - Store size is KB to MB per day, with no pixel bytes copied.
 - Append a second day. It lands in the level-0 group and the store still opens.
 - Every catalog link resolves. Sampled `https` hrefs answer Range requests with 206.
 
 ## 12. Stage 1 findings
+
+The raw findings of each build, by date. Section 13 groups what they mean for Zarr in Portolan.
 
 Measured on 2026-10-06 against `noaa-goes18`, with VirtualiZarr 2.7.3, Icechunk 2.3.0 and zarr 3.4.0.
 
@@ -229,4 +232,53 @@ Built from the 24-scan store, with `goes_fdc.collection` writing the metadata fr
 - **Registry pin.** Portolan pins the render extension at v2.0.0, so the collection declares v2.0.0 and not v2.1.0.
 - **Thumbnail.** The spec requires one for geospatial collections. It is a 7 KB PNG in `catalog/`, rendered from the store.
 
+Kerchunk was dropped after these findings (see stage 1b in section 10).
+
+### Two-week build (2026-10-21)
+
+GOES-18 FDCC, 2025-01-07 to 2025-01-20, built on a laptop with 32 threads.
+
+- **Size and speed.** The final build, from an empty store: 3,996 scans in 24 minutes, about 2.8 scans per second. Each UTC day took 89 to 113 s of header reads. Listing and committing took under 1 s each. The tagged snapshot needs 13.3 MB of manifests in 73 files, about 3.3 KB per scan. The repository is 20 MB on disk.
+- **Manifests grow with the square of the commits.** In a first build without splitting, each daily append rewrote the whole manifest of each array. After 14 daily commits that repository held 100 MB for 13.3 MB of live manifests. With `ManifestSplittingConfig` along `time` at 288 scans, an append writes only its own manifests: four 24-scan appends wrote 78 to 81 KB each. The final build used splitting from its first commit.
+- **Bad time stamps.** In three files, `t` is the fill value `-999` and the pixels are valid. The file at 2025-01-10T00:01:17.5Z (start and end stamps equal) decodes to 2000-01-01T11:43:21, and the first build stored it there. The Mode 4 files at 2025-01-20 15:10 and 15:15Z also have `-999` in `time_bounds`, and CF time decoding failed for the whole file. The pipeline uses the file-name midpoint for any `t` outside the scan's own stamps. The final build applied that rule to all three files as it read them, with no manual correction.
+- **A gap.** NOAA's bucket has no FDCC files from 2025-01-16T11:57Z to 15:02Z. That day has 252 scans, not 288.
+- **Read-back.** All five variables of three sampled scans, including two with a file-name time, are byte-identical to the raw netCDF.
+- **Reading through the catalog.** `examples/palisades-frp.ipynb` reads `Power` and `Mask` over a 6 x 9 pixel box for all 3,996 scans in 103 to 109 s, one chunk per variable per scan, from the local manifests and NOAA's bucket.
+- **Tags cannot be reused.** Icechunk refuses to create a tag with the name of a deleted tag. Choose tag names before publishing.
+
+### Read and change-detection checks (2026-10-21)
+
+- **HTTP read from a clean environment.** A fresh environment with only `icechunk` 2.3.0, `zarr` 3.4.0 and `xarray` 2026.9.0 opened the store through `icechunk.http_storage`, served from `local/publish` by a local HTTP server with Range support. It found the tag `demo-2025-01`, 3,996 scans, and the three file-name times. The FRP over the Palisades box at 2025-01-08T07:12Z was 26,255 MW, the same as a local read. Without the virtual chunk container, the read failed with `InvalidInputError` and a message that identifies the container to authorize.
+- **The HTTP server must handle concurrent requests.** Icechunk sends its first requests in parallel. Python's single-threaded `RangeHTTPServer` dropped the request for `repo`, and Icechunk reported `RepositoryNotFoundError`. A threaded server worked. Source Cooperative is not affected, but a local preview needs a threaded server.
+- **How change detection works.** VirtualiZarr stamps each virtual reference with the time it was written. Icechunk sends that time in `If-Unmodified-Since` on every chunk read. NOAA's bucket answered `412` to a request with a date before the file's `Last-Modified`, and `206` with a later date.
+- **Change detection needs a server that honors the header.** A store pointed at a local copy of a NOAA file was read three times. With a server that ignores `If-Unmodified-Since`, a newer modification time read without error, and a replaced file failed only in decompression. With a server that answers `412` as S3 does, both cases stopped with `the checksum of the object owning the virtual chunk has changed`. The check is by time, not by content. A re-upload of identical bytes also stops the read.
+
 Storage estimate for the Palisades window (about 7,200 scans), extrapolated from the 24-scan measurements and not yet measured at scale: Icechunk about 47 to 72 MB (6.5 to 10 KB per scan, and manifest growth under many appends is unverified), Kerchunk parquet about 30 MB, Kerchunk JSON about 365 MB. The raw netCDF would be about 1.6 GB (226 KB per scan) and is never downloaded or copied. The build reads headers only.
+
+## 13. Zarr in Portolan: findings from this demo
+
+Portolan defers a normative Zarr profile until real Zarr datasets have been tested in catalogs ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)). This section collects what this catalog found as one of those tests. Each item is marked **measured** (observed in this repository) or **open** (a question for the spec). The details and numbers are in section 12.
+
+### 13.1 Gaps in the catalog metadata
+
+- **The virtual chunk container (measured).** The cube's chunks live in NOAA's bucket, not next to the store. Icechunk reads them only after the reader authorizes `https://noaa-goes18.s3.amazonaws.com/` as a virtual chunk container. No field in the STAC `zarr` or `xarray` extensions carries that. Today the recipe is in the collection README, and `examples/palisades-frp.ipynb` copies it by hand.
+- **That the store is Icechunk (measured).** The asset media type is `application/vnd+zarr`. It says Zarr, not Icechunk. A generic Zarr client cannot open the repository by URL, and the media type does not tell a client that it needs the `icechunk` library.
+- **How to build the storage (measured).** The href gives a location. The reader still picks local, `http`, or `s3` storage from the href scheme.
+- **Which snapshot to open (open).** An Icechunk repository has branches and tags, and this catalog publishes the whole repository. The tag `demo-2025-01` appears in the collection README, but in no metadata field.
+- **Which grid era a cube covers (open).** A virtual cube inherits the grid of the files it references. GOES-18 FDCC changed its projection origin in 2022, so one satellite needs more than one cube to cover its whole record. No field states the era of a cube or links the cube for another era.
+- **Checksum and size of a directory asset (measured).** The `icechunk` asset is a directory, so it has no one `file:checksum` or `file:size` value. rashid 0.1.8 reports PTL-AST-003 as a warning for each.
+
+### 13.2 What worked
+
+- **Discovery (measured).** pystac walks root, `goes-18`, and `abi-l2-fdcc` with no special handling. The asset gives the href, media type, and `xarray:open_kwargs`, and that is enough to call `xarray.open_zarr` once the store is open.
+- **Projection (measured).** `proj:wkt2` on the asset is enough to convert a longitude and latitude box to fixed-grid scan angles with `pyproj` alone. The notebook needs no GOES-specific code for that step. A geostationary grid has no EPSG code, so `proj:code` is null and the WKT2 carries the CRS.
+- **Validation (measured).** rashid reports 0 errors on the catalog. Zarr stays outside the conformance surface, and the README says so.
+
+### 13.3 Lessons from building and serving a virtual store
+
+- **Split manifests from the start (measured).** Without manifest splitting, each daily append rewrote every manifest, and the repository grew with the square of the number of commits: 100 MB on disk for 13.3 MB of live manifests after 14 commits. With a split along `time` at 288 scans, the rebuilt repository is 20 MB. Earthmover reported the same need on GOES-16.
+- **An archive is not one grid (measured).** The first GOES-18 FDCC files sit at `-89.5` degrees as `GOES-Test`, and later files at `-137.0`, with different `x` and `y` axes. The pipeline compares a signature of each scan against the cube and stops on a mismatch.
+- **Bad headers become bad coordinates (measured).** In the window, the files listed in the collection README have `t` set to the fill value `-999` with valid pixels. One decoded to 2000-01-01 without an error. The pipeline uses the file-name midpoint for any `t` outside the scan's own stamps. A virtual cube copies header values, so a header check belongs in the build.
+- **Tags are permanent (measured).** Icechunk refuses to create a tag with the name of a deleted tag. Choose published tag names before the first upload.
+- **Change detection depends on the source server (measured).** Icechunk detects a changed source file only when the server honors `If-Unmodified-Since`. NOAA's S3 bucket does. A virtual store over a plain HTTP mirror that ignores the header gets no protection, and a changed file returns wrong bytes or a decode error. The check is by time, so a re-upload of identical bytes also blocks the read.
+- **Cost (measured).** The build reads headers only: about 2.8 scans per second from a laptop, about 3.3 KB of manifest per scan. A read of a small box touches one chunk per variable per scan: 7,992 requests for `Power` and `Mask` over 3,996 scans, in 103 to 109 s. The source files are never copied.

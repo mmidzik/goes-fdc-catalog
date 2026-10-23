@@ -12,7 +12,7 @@ INFO = {
     "variables": {v: {"unit": "1", "dtype": "int16"} for v in ["Mask", "DQF", "Power", "Temp", "Area"]},
     "wkt2": "WKT",
 }
-FILES = {"kerchunk": {"file:size": 1}, "thumbnail": {"file:size": 2}}
+FILES = {"thumbnail": {"file:size": 2}}
 BASE = "https://data.example.org/p"
 
 
@@ -38,8 +38,8 @@ def test_collection_is_a_complete_mirror():
 
 def test_data_assets_use_absolute_https_hrefs():
     c = collection_json(INFO, BASE, [0, 0, 1, 1], FILES)
-    for key in ("icechunk", "kerchunk"):
-        assert c["assets"][key]["href"].startswith(BASE + "/goes-18/abi-l2-fdcc/")
-        assert "xarray:open_kwargs" in c["assets"][key]
+    assert set(c["assets"]) == {"icechunk", "thumbnail"}
+    assert c["assets"]["icechunk"]["href"].startswith(BASE + "/goes-18/abi-l2-fdcc/")
+    assert "xarray:open_kwargs" in c["assets"]["icechunk"]
     assert c["assets"]["icechunk"]["href"].endswith("/icechunk/")
     assert c["assets"]["thumbnail"]["roles"] == ["thumbnail"]

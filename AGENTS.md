@@ -69,5 +69,5 @@ Update both if the repository moves.
 
 ### Pipeline output stays local
 
-`local/` is gitignored. The Icechunk repo and the
-Kerchunk parquet are build products, not source. Never commit them.
+`local/` is gitignored. The Icechunk repo is a build product, not source.
+Never commit it.

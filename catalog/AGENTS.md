@@ -10,7 +10,7 @@ downstream catches it.
 
 ## What this catalog holds
 
-A pilot, limited to the ABI Fire/Hot Spot Characterization (FDC) product.
+A demo, limited to the ABI Fire/Hot Spot Characterization (FDC) product.
 The catalog is not published yet. The one collection is `goes-18/abi-l2-fdcc`. Public root URL, once published:
 `https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/` (provisional).
 

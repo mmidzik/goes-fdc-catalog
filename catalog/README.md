@@ -7,13 +7,14 @@ public `noaa-goes*` buckets.
 
 ## What is here
 
-This catalog is a pilot. Publishing to Source Cooperative is TODO, so nothing is
-published yet. The one collection is `abi-l2-fdcc` under `goes-18`: the ABI Level 2 Fire/Hot Spot
-Characterization product for CONUS, from GOES-18. It is one 1500 × 2500 grid
-per scan, about every 5 minutes. The pilot window is the Palisades fire, 2025-01-07
-to 2025-01-31. Later versions add the full GOES-18 record and the other GOES-R satellites.
-The full disk and mesoscale FDC sectors come after that. The catalog covers the
-FDC product only.
+This catalog is a demo. Publishing to Source Cooperative is TODO, so nothing
+is published yet. The one collection is `abi-l2-fdcc` under `goes-18`: the ABI
+Level 2 Fire/Hot Spot Characterization product for CONUS, from GOES-18. It is
+one 1500 × 2500 grid per scan, about every 5 minutes. The demo window is two
+weeks, 2025-01-07 to 2025-01-20 UTC, with the full CONUS scene in every scan.
+The next version
+extends the window to two years. Other GOES-R satellites and FDC sectors can be
+added as sibling collections. The catalog covers the FDC product only.
 
 The Zarr assets are outside the Portolan conformance surface. The Portolan
 specification defers Zarr support until real Zarr datasets have been tested in

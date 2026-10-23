@@ -2,12 +2,17 @@
 from __future__ import annotations
 
 import argparse
-from datetime import datetime, timezone
-from pathlib import Path
+import logging
+from datetime import datetime, timedelta, timezone
 
 from . import keys, store, virtualize
 
-BATCH = 288  # about one day of CONUS scans per Icechunk commit
+# One Icechunk commit per UTC day, about 288 CONUS scans. A day is listed,
+# virtualized, and committed before the next day starts, so a long build holds
+# one day in memory and a stopped build resumes at the next day.
+DAY = timedelta(days=1)
+
+log = logging.getLogger(__name__)
 
 
 def _utc(s: str) -> datetime:
@@ -16,19 +21,32 @@ def _utc(s: str) -> datetime:
 
 def build(args: argparse.Namespace) -> None:
     start, end = _utc(args.start), _utc(args.end)
-    scans = keys.list_scans(args.satellite, args.product, start, end)
-    repo = store.open_repo(args.out / "icechunk", args.satellite)
+    repo = store.open_repo(args.store, args.satellite)
     seen = store.last_time(repo)
+    cutoff = None
     if seen is not None:
         cutoff = datetime.fromtimestamp(seen.astype("datetime64[s]").astype(int), timezone.utc)
-        scans = [s for s in scans if s.start > cutoff]
-    print(f"{len(scans)} new scans in [{start:%F %T}, {end:%F %T})")
-    for i in range(0, len(scans), BATCH):
-        chunk = scans[i : i + BATCH]
-        cube = virtualize.build_cube(chunk, workers=args.workers)
-        snap = store.append(repo, cube, f"{chunk[0].start:%FT%TZ} to {chunk[-1].start:%FT%TZ}")
-        store.export_kerchunk(cube, args.out / "refs" / f"{chunk[0].start:%Y%m%dT%H%M}.parquet")
-        print(f"committed {snap}: {len(chunk)} scans, last {chunk[-1].start:%F %T}")
+        log.info("store ends at %s; resuming after it", f"{cutoff:%F %T}")
+    day = start.replace(hour=0, minute=0, second=0, microsecond=0)
+    total = 0
+    while day < end:
+        lo, hi = max(day, start), min(day + DAY, end)
+        day += DAY
+        if cutoff is not None and hi <= cutoff:
+            continue
+        scans = keys.list_scans(args.satellite, args.product, lo, hi)
+        if cutoff is not None:
+            scans = [s for s in scans if s.start > cutoff]
+        if not scans:
+            log.info("%s: no new scans", f"{lo:%F}")
+            continue
+        log.info("%s: listed %d scans", f"{lo:%F}", len(scans))
+        cube = virtualize.build_cube(scans, workers=args.workers)
+        log.info("%s: virtualized", f"{lo:%F}")
+        snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}")
+        log.info("%s: committed %s", f"{lo:%F}", snap)
+        total += len(scans)
+    log.info("done: %d scans added", total)
 
 
 def main() -> None:
@@ -39,8 +57,10 @@ def main() -> None:
     b.add_argument("--product", default="ABI-L2-FDCC")
     b.add_argument("--start", required=True, help="UTC, ISO 8601, e.g. 2025-01-07T00:00")
     b.add_argument("--end", required=True, help="UTC, exclusive")
-    b.add_argument("--out", type=Path, default=Path("local"))
+    b.add_argument("--store", default=str(store.DEFAULT_STORE), help="local path or s3://bucket/prefix of the Icechunk repo")
     b.add_argument("--workers", type=int, default=16)
     b.set_defaults(func=build)
     args = p.parse_args()
+    # Each line carries its time, so the gap between two lines is the time a step took.
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     args.func(args)
