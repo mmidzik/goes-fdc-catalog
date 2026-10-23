@@ -48,8 +48,10 @@ only (validate.py, `stac_upper == "ITEM" or stac_upper == "COLLECTION"`).
 Catalogs get the core schema alone and never crash. A catalog with no
 collections yet has nothing reachable, so the expiry check stays quiet.
 
-CI installs stac-check unpinned on purpose. That is what makes this work: the
-next stac-check release flips this gate without anyone watching for it.
+pyproject.toml sets no version range for stac-check. CI installs the version in
+uv.lock, so a new release reaches CI only when the lock file moves. Run
+`uv lock --upgrade-package stac-check` to take it. The gate then fails if the
+new release no longer crashes.
 
 Fails when stac-check is absent. A skip reports a green run for objects
 that no validator read. The failure message gives the install command.
@@ -79,8 +81,9 @@ def fail(message: str) -> None:
 # No version floor, and no pin. The conformance gate takes a rashid floor
 # because it asserts named rules. This gate asserts no stac-check rule. It
 # depends on the opposite property. The exemption below expires when a new
-# stac-check stops emitting the crash, so CI must take each new release. A pin
-# or a floor with an upper bound holds the exemption open after the fix ships.
+# stac-check stops emitting the crash, so the lock must be free to take each
+# new release. A pin or a floor with an upper bound holds the exemption open
+# after the fix ships.
 try:
     from stac_check.lint import Linter
 except ImportError:

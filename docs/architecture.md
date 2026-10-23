@@ -53,20 +53,6 @@ The variables, grid and codes are described in
 [catalog/README.md](../catalog/README.md). The measured file layout is in the
 [collection agent guide](../catalog/goes-18-fdcc/AGENTS.md).
 
-## Why virtualize
-
-NOAA publishes no STAC, COG or Zarr form of FDC, and no full-archive vector form
-of GOES FDC exists. FDC is a raster per scan, and fire is a few codes among many.
-A fire-pixel table would drop the cloud, clear-land, water and block-out pixels
-that detection validation needs. A converted copy of the full grid would
-duplicate NOAA's archive. A virtual cube keeps the full grid and copies none of
-it.
-
-The cost is a dependency on NOAA's bucket. Every pixel read is a Range request
-to `https://noaa-goes18.s3.amazonaws.com`, so the catalog works only while those
-objects stay at the same keys with the same bytes. A switch to another copy of
-the files, such as the Google Cloud mirror, means a rebuild of the references.
-
 ## Build method
 
 ```mermaid
@@ -100,23 +86,22 @@ flowchart TD
 box one UTC day at a time. A long build has only one day in memory, and a
 stopped build resumes at the next day.
 
-**Listing.** The bucket listing is the index, so there is no separate indexer
-or database. The build lists one hour prefix at a time and starts after the last
+**Listing.** The bucket listing is the index, so there is no separate indexer or
+database. The build lists one hour prefix at a time and starts after the last
 `time` value in the store. A second run over the same window adds nothing.
 
 **Virtualization.** VirtualiZarr reads the HDF5 metadata of each file with Range
-requests and records the byte range of each chunk. It reads no pixel chunks. The cube keeps NOAA's
-variables, chunks and attributes as they are.
+requests and records the byte range of each chunk. It reads no pixel chunks. The
+cube keeps NOAA's variables, chunks and attributes as they are.
 
 **Time.** The build takes each scan's time from the file, and falls back to the
-file-name stamps when the file value is not usable. The
-[catalog README](../catalog/README.md#time) gives the rule.
+file-name stamps when the file value is not usable.
 
 **One grid per cube.** A virtual cube inherits the grid and encoding of the
-files it references, and NOAA changes these over a satellite's life. The build records a signature of the grid and
-encoding of each scan. It stops
-when a scan does not match the store. Scans with a different signature belong in
-a separate cube.
+files it references, and NOAA changes these over a satellite's life. The build
+records a signature of the grid and encoding of each scan. It stops when a scan
+does not match the store. Scans with a different signature belong in a separate
+cube.
 
 **Writing the store.** Each UTC day is one Icechunk commit, so a failed day
 commits nothing and the next run retries it. The repository authorizes NOAA's
@@ -129,8 +114,8 @@ metadata cannot drift from the data, because the data is its only input.
 
 ## The Zarr store
 
-Each collection's asset is an Icechunk repository. Its chunks are byte ranges
-in NOAA's files, so a reader must authorize NOAA's bucket as a virtual chunk
+Each collection's asset is an Icechunk repository. Its chunks are byte ranges in
+NOAA's files, so a reader must authorize NOAA's bucket as a virtual chunk
 container. The tested recipe is in the
 [collection README](../catalog/goes-18-fdcc/README.md#access). A generic Zarr
 client that does not know Icechunk cannot open the store by URL.
@@ -141,43 +126,6 @@ read if the file changed after that time. The check is by time, not by content,
 so a re-upload of identical bytes also stops the read. It works only against a
 server that supports conditional reads, as S3 does.
 
-## Catalog metadata
-
-```
-catalog/                          root catalog, GOES FDC
-  catalog.json  README.md  AGENTS.md
-  goes-18-fdcc/                   collection, GOES-18 CONUS
-    collection.json
-    README.md  AGENTS.md  thumbnail.png
-    (icechunk/ on Source Cooperative only)
-```
-
-- Each collection covers one satellite and one scan sector, because a virtual
-  cube needs one grid. The collections are direct children of the root catalog.
-  The Portolan spec recommends sub-catalogs at twenty or more children, and GOES-16 to
-  GOES-19 with three sectors each stay below that.
-- Collection ids follow `goes-<satellite>-fdc<sector>`, in the order of NOAA's
-  bucket layout and the Earth Engine ids (`NOAA/GOES/18/FDCC`).
-- The collection has no items, because the cube is the access path. Static items
-  for about 288 scans per day would be heavy.
-
-- The collection has no computed statistics, because they change on every
-  append.
-
-## Updates and operations
-
-`.github/workflows/update.yml` appends a time window to the published store,
-regenerates the collection, and publishes the metadata. It has a manual trigger.
-It appends in place on Source Cooperative instead of a sync of a staged copy,
-because a partial sync of an Icechunk repo can leave refs to snapshots that are
-not uploaded yet. It runs one job at a time, because Icechunk takes one writer
-per commit.
-
-A schedule turns the workflow into a live mirror. A later event-driven version
-could subscribe to NOAA's `NewGOES18Object` SNS topic and batch new keys into
-one commit. A scheduled list job would stay as a reconciler, because SNS
-delivery is not guaranteed.
-
 ## Verification
 
 - **Read-back.** All five variables of sampled scans read back byte-identical to
@@ -185,12 +133,13 @@ delivery is not guaranteed.
 - **Append.** A repeated run over the same window adds no scans, and the time
   axis remains unique and monotonic.
 - **Reading over HTTP.** A clean environment with only `icechunk`, `zarr` and
-  `xarray` opens the store over HTTP and returns the same values as a local read.
+  `xarray` opens the store over HTTP and returns the same values as a local
+  read.
 - **Change detection.** NOAA's bucket refuses a read of a file that changed
   after the reference was written. A server without conditional reads returns
   the changed file with no error.
-- **Validation.** `rashid check catalog --schema` reports no errors. The warnings
-  are in [conformance.md](conformance.md).
+- **Validation.** `rashid check catalog --schema` reports no errors. The
+  warnings are in [conformance.md](conformance.md).
 
 ## Zarr in Portolan: findings from this demo
 
@@ -228,22 +177,3 @@ Lessons from building a virtual store:
   cube, and stop on a mismatch.
 - **Check the headers.** A virtual cube copies header values, so a bad header
   value becomes a bad coordinate with no error.
-- **Choose tag names with care.** Icechunk does not reuse the name of a deleted
-  tag.
-
-## Open questions and later work
-
-Open questions:
-
-- Does Source Cooperative support the conditional writes Icechunk needs, and
-  its CORS and Range behavior for the store?
-- What is the re-sync rule after NOAA reprocesses a file?
-- How should the catalog point back at this repository
-  ([portolan-spec#145](https://github.com/portolan-sdi/portolan-spec/issues/145))?
-
-Later work:
-
-- A longer time range, with the same `goes-fdc build` command.
-- Other satellites and sectors as sibling collections, one cube per grid.
-- An on-request COG endpoint, if a raster-file consumer needs it.
-- A fire-pixel GeoParquet in the FIRMS style, as a conformant vector view.
