@@ -1,58 +1,45 @@
-# AGENTS.md: fire/hot spot characterization from the GOES-R imager
+# AGENTS.md — GOES fire/hot spot characterization
+
+The collection guide with the file layout, the read recipe and the traps is
+[goes-18-fdcc/AGENTS.md](goes-18-fdcc/AGENTS.md). Humans want
+[README.md](README.md) for the variables and codes, and
+[goes-18-fdcc/README.md](goes-18-fdcc/README.md) for the recipe.
 
 Guidance for AI agents and automated clients working with this catalog.
 
 **One rule survives every edit to this file.** Every claim here is either quoted
 from a source or measured from the data. If you cannot point at where a fact
-came from, it does not belong in this file. An agent acting on an invented join
-key or an invented column name produces a confident wrong answer, and nothing
-downstream catches it.
+came from, it does not belong in this file.
 
 ## What this catalog holds
 
-A demo, limited to the ABI Fire/Hot Spot Characterization (FDC) product.
-The catalog is not published yet. The one collection is `goes-18/abi-l2-fdcc`. Public root URL, once published:
-`https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/` (provisional).
+One collection so far. The catalog is not published yet. Public root, provisional:
+`https://data.source.coop/<ACCOUNT>/goes-fdc/catalog.json`
 
-## Where the data comes from
+| collection | holds |
+|---|---|
+| [`goes-18-fdcc`](goes-18-fdcc/collection.json) | A virtual Zarr cube over 3,996 GOES-18 CONUS FDC scans, 2025-01-07 to 2025-01-20 UTC, in one Icechunk repository |
 
-Measured on 2026-10-06 against `https://noaa-goes18.s3.amazonaws.com`:
+NOAA and NESDIS produce the data and are the authoritative source. This catalog is a **mirror**, and the pixel bytes are in NOAA's `noaa-goes18` bucket.
 
-- Anonymous listing and Range requests work. A Range request returned `206`
-  and `Accept-Ranges: bytes`. The bucket CORS rule allows `*` for GET.
-- Keys are `ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/<filename>`.
-- Filenames look like
-  `OR_ABI-L2-FDCC-M6_G18_s20250080301172_e20250080303545_c20250080304133.nc`.
-  The `s`, `e` and `c` stamps are start, end and creation: year, day of year,
-  hour, minute, second, tenths of a second.
+## Start here
 
-## File layout (measured on the scan above)
+The file layout, the read recipe, the traps, and a measured check value all
+live in the collection guide:
+[`goes-18-fdcc/AGENTS.md`](goes-18-fdcc/AGENTS.md). Read it
+before you open the cube.
 
-| Variable | Shape | dtype | Chunks | Filter | Attributes |
-|---|---|---|---|---|---|
-| `Mask` | 1500 × 2500 | int16 | 250 × 250 | gzip + shuffle | `_FillValue` -99 |
-| `DQF` | 1500 × 2500 | uint8 | 250 × 250 | gzip + shuffle | `_FillValue` 255 |
-| `Power` | 1500 × 2500 | float32 | 250 × 250 | gzip + shuffle | units MW, `_FillValue` -9 |
-| `Temp` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units K, `scale_factor` 0.05493667, `add_offset` 400, `_FillValue` 65535 |
-| `Area` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units m2, `scale_factor` 60.98, `add_offset` 4000, `_FillValue` 65535 |
+These traps most often produce a confident wrong answer:
 
-Each file also holds a scalar `t` (seconds since 2000-01-01 12:00:00) and
-`time_bounds`. The `time` axis in the Zarr cube comes from `t`, which falls
-between the file's start and end stamps.
+- `x` and `y` are ABI scan angles in radians, not longitude and latitude.
+- `Power` uses the fill value `-9`. A sum without `where(Power > 0)` includes it.
+- The store opens only after the reader authorizes
+  `https://noaa-goes18.s3.amazonaws.com/` as an Icechunk virtual chunk container.
 
-## How to read it
+## Join keys
 
-Not yet. The first published collection adds one worked query per access
-path, each run against the published files.
-
-## Quirks that produce silently wrong answers
-
-- The grid is the ABI geostationary fixed grid (`grid_mapping` is
-  `goes_imager_projection`), not latitude and longitude. `x` and `y` are scan
-  angles in radians.
-- Open the store with scaling off (`mask_and_scale=False`) to get the raw
-  integers NOAA wrote. With scaling on, `Temp` and `Area` decode to float64 and
-  fill values become NaN.
+The catalog has one collection, so nothing joins across collections. A scan
+is identified by its `time` value, and a pixel by (`time`, `y`, `x`).
 
 ## Structure
 

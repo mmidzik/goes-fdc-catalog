@@ -15,7 +15,39 @@ scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z (measured from the `time`
 coordinate). Dimensions `time` (3996) × `y` (1500) × `x` (2500). The Icechunk tag
 `demo-2025-01` pins this snapshot. Variables `Mask`, `DQF`, `Power`, `Temp`,
 `Area`. Public root, provisional:
-`https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/`.
+`https://data.source.coop/<ACCOUNT>/goes-fdc/`.
+
+The orbital slot recorded in the NOAA files read for this catalog (2025-01-07
+and 2025-01-08) is `GOES-West`. A satellite's slot can change over its life, so
+check the `orbital_slot` attribute in the file for the date you need.
+
+## Source bucket
+
+Measured on 2026-10-06 against `https://noaa-goes18.s3.amazonaws.com`:
+
+- Anonymous listing and Range requests work. A Range request returned `206`
+  and `Accept-Ranges: bytes`. The bucket CORS rule allows `*` for GET.
+- Keys are `ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/<filename>`.
+- Filenames look like
+  `OR_ABI-L2-FDCC-M6_G18_s20250080301172_e20250080303545_c20250080304133.nc`.
+  The `s`, `e` and `c` stamps are start, end and creation: year, day of year,
+  hour, minute, second, tenths of a second.
+
+## File layout (measured on the scan above)
+
+| Variable | Shape | dtype | Chunks | Filter | Attributes |
+|---|---|---|---|---|---|
+| `Mask` | 1500 × 2500 | int16 | 250 × 250 | gzip + shuffle | `_FillValue` `-99` |
+| `DQF` | 1500 × 2500 | uint8 | 250 × 250 | gzip + shuffle | `_FillValue` 255 |
+| `Power` | 1500 × 2500 | float32 | 250 × 250 | gzip + shuffle | units MW, `_FillValue` `-9` |
+| `Temp` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units K, `scale_factor` 0.05493667, `add_offset` 400, `_FillValue` 65535 |
+| `Area` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units m2, `scale_factor` 60.98, `add_offset` 4000, `_FillValue` 65535 |
+
+Each file also contains a scalar `t` (seconds since 2000-01-01 12:00:00) and
+`time_bounds`. The `Mask` and `DQF` codes are in the `flag_values` and
+`flag_meanings` attributes, and the catalog `../README.md` tabulates them. Fire
+pixels are `Mask` codes 10 to 15 and 30 to 35 (measured from `flag_meanings` on
+the scan above).
 
 ## How to read it
 
@@ -46,13 +78,13 @@ store. The Source Cooperative URL is untested.
   `proj:wkt2` holds it.
 - **Time is mid-scan.** `time` comes from each file's `t` and falls between the
   start and end stamps in the filename, for example 19:57:35 for a scan that
-  starts 19:56:17. The files listed in `README.md` have `t` = `-999`. Their `time` is the file-name
-  midpoint instead.
-- **A gap.** No scans exist from 2025-01-16T11:57Z to 15:02Z. NOAA's bucket has
-  no files for those hours. A time series has no values there. A line plot
-  joins the two sides, which hides the gap.
+  starts 19:56:17. When a file's `t` is not usable, `time` is the midpoint of
+  the start and end stamps in the filename instead.
+- **Gaps.** NOAA's bucket can have no file for a scan, and the cube then has no
+  time step for it. Do not assume a fixed 5-minute spacing along `time`. A line
+  plot joins the two sides of a gap, which hides it.
 - **Scene extent.** The collection bbox is NOAA's `geospatial_lat_lon_extent`
-  for this scene and crosses the antimeridian (west 175.6, east -89.6).
+  for this scene and crosses the antimeridian (west 175.6, east `-89.6`).
 - **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
   reference was written. NOAA's bucket answers `412` for a file modified after
   that time (measured with a date before a file's `Last-Modified`). Icechunk
