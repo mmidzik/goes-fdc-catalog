@@ -71,6 +71,17 @@ Every claim in a `catalog/**/AGENTS.md` is either quoted from a source or
 measured from the data. An invented join key or column name produces a
 confident wrong answer that nothing downstream catches.
 
+Variable names come from the catalog, not from a `catalog/**/AGENTS.md`. The
+collection's `cube:variables` and the asset's `bands` list them, and a guide
+tells the reader to read them there. A guide that repeats a name drifts when the
+store changes.
+
+Every published Markdown file under `catalog/` describes the store in general.
+Leave out a test build of the store, its scan count and its snapshot tag. A
+published store is rebuilt and appended to, so those facts go stale.
+
+`tests/test_agent_guides.py` checks both rules.
+
 ### The links back to this repository
 
 `catalog/catalog.json` carries a `vcs` link and an `issues` link, both absolute

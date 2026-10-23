@@ -7,9 +7,8 @@ fire, clear land, cloud, water and the pixels the algorithm could not process.
 The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
 
-> **Demo.** The catalog covers two weeks, 2025-01-07 to 2025-01-20 UTC, which
-> include the January 2025 Los Angeles fires, and the same pipeline extends the
-> cube in time.
+> **Demo.** The catalog is not published yet. The collection's `extent` gives
+> the time range of the cube, and the pipeline extends the cube in time.
 
 NOAA and NESDIS produce the data and remain the authoritative source. This
 catalog is a **mirror** of it.
@@ -31,8 +30,8 @@ product (FDC) for the GOES-18 CONUS sector.
 | Satellite  | GOES-18, GOES-West, at 137.0° W                                       |
 | Instrument | ABI                                                                   |
 | Product    | `ABI-L2-FDCC`, Level 2 Fire/Hot Spot Characterization, CONUS sector   |
-| Window     | 2025-01-07T00:02Z to 2025-01-20T23:57Z                                |
-| Scans      | 3,996, about one every 5 minutes, about 288 per day                   |
+| Time range | The collection's temporal `extent`                                    |
+| Scans      | About one every 5 minutes, about 288 per day                          |
 | Grid       | 1500 × 2500 pixels on the ABI geostationary fixed grid, 2 km at nadir |
 | Extent     | 14.6° N to 53.5° N, 175.6° E across the antimeridian to 89.6° W       |
 | Variables  | `Mask`, `DQF`, `Power`, `Temp`, `Area`                                |

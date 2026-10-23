@@ -73,3 +73,16 @@ def test_centre_extent_spans_the_pixel_centres():
 
     assert centre_extent(0.0, 10.0, 3) == [5.0, 25.0]
     assert centre_extent(100.0, -10.0, 3) == [75.0, 95.0]
+
+
+def test_cube_variables_name_every_store_variable():
+    info = {**INFO, "other_variables": {
+        "maximum_fire_radiative_power": {"dimensions": ["time"], "unit": "MW", "description": "max FRP"},
+        "goes_imager_projection": {"dimensions": [], "unit": "", "description": "projection"},
+    }}
+    variables = collection_json(info, BASE, [0, 0, 1, 1], FILES)["cube:variables"]
+    assert variables["maximum_fire_radiative_power"] == {
+        "type": "data", "dimensions": ["time"], "unit": "MW", "description": "max FRP"}
+    assert variables["goes_imager_projection"]["type"] == "auxiliary"
+    assert "unit" not in variables["goes_imager_projection"]
+

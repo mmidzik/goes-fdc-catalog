@@ -75,6 +75,17 @@ def inspect_store(repo_path: Path) -> dict:
             }
             for v in virtualize.VARIABLES
         },
+        # NOAA's per-scan values and the grid mapping variable. The collection
+        # names them, so the agent guides need not.
+        "other_variables": {
+            v: {
+                "dimensions": list(ds[v].dims),
+                "unit": ds[v].attrs.get("units", ""),
+                "description": ds[v].attrs.get("long_name", ""),
+            }
+            for v in [*virtualize.SCAN_SCALARS, virtualize.PROJECTION]
+            if v in ds
+        },
         "wkt2": attrs["proj:wkt2"],
     }
 
@@ -142,9 +153,20 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                   "step": info["x"]["step"], "unit": "m"},
         },
         "cube:variables": {
-            v: {"type": "data", "dimensions": ["time", "y", "x"], "unit": m["unit"],
-                "description": DESCRIPTIONS[v]}
-            for v, m in info["variables"].items()
+            **{
+                v: {"type": "data", "dimensions": ["time", "y", "x"], "unit": m["unit"],
+                    "description": DESCRIPTIONS[v]}
+                for v, m in info["variables"].items()
+            },
+            **{
+                v: {
+                    "type": "auxiliary" if v == virtualize.PROJECTION else "data",
+                    "dimensions": m["dimensions"],
+                    **({"unit": m["unit"]} if m["unit"] else {}),
+                    **({"description": m["description"]} if m["description"] else {}),
+                }
+                for v, m in info.get("other_variables", {}).items()
+            },
         },
         "renders": {
             "frp": {

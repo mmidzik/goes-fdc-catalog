@@ -18,7 +18,7 @@ One collection so far. The catalog is not published yet. Public root, provisiona
 
 | collection | holds |
 |---|---|
-| [`goes-18-fdcc`](goes-18-fdcc/collection.json) | A virtual Zarr cube over 3,996 GOES-18 CONUS FDC scans, 2025-01-07 to 2025-01-20 UTC, in one Icechunk repository |
+| [`goes-18-fdcc`](goes-18-fdcc/collection.json) | A virtual Zarr cube of GOES-18 CONUS FDC scans in one Icechunk repository. The time extent is in the collection |
 
 NOAA and NESDIS produce the data and are the authoritative source. This catalog is a **mirror**, and the pixel bytes are in NOAA's `noaa-goes18` bucket.
 
@@ -29,10 +29,12 @@ live in the collection guide:
 [`goes-18-fdcc/AGENTS.md`](goes-18-fdcc/AGENTS.md). Read it
 before you open the cube.
 
-These traps most often produce a confident wrong answer:
+Read the variable names from `cube:variables` in each `collection.json`, not
+from this file. These traps most often produce a confident wrong answer:
 
 - `x` and `y` are ABI scan angles in radians, not longitude and latitude.
-- `Power` uses the fill value `-9`. A sum without `where(Power > 0)` includes it.
+- Some nodata values are negative numbers. A sum that does not mask them
+  includes them. Each pixel variable's nodata value is in the asset's `bands`.
 - The store opens only after the reader authorizes
   `https://noaa-goes18.s3.amazonaws.com/` as an Icechunk virtual chunk container.
 
