@@ -1,6 +1,19 @@
 # goes-fdc-catalog
 
-A Portolan catalog of NOAA's GOES ABI Fire/Hot Spot Characterization as a virtual Zarr cube. The design is in `docs/architecture.md`. Read it before you change the pipeline or the catalog layout.
+A Portolan catalog of NOAA's GOES-18 ABI Fire/Hot Spot Characterization as a virtual Zarr cube.
+
+## Where things are documented
+
+| File | Holds |
+|---|---|
+| `README.md` | The repository: what it publishes, key decisions, the pipeline, how to work here. Keep it short. |
+| `docs/architecture.md` | Methods: source data, the build, the Zarr store, catalog metadata, measurements, Zarr findings. |
+| `catalog/README.md` | The data, for humans: variables, codes, coverage, license, provenance. Published. |
+| `catalog/AGENTS.md` | A short pointer for machine clients. Published. |
+| `catalog/abi-l2-fdcc/README.md` and `AGENTS.md` | The read recipe, measured file layout, and the traps. Published. |
+| `docs/conformance.md` | Validator findings and the accepted ones. |
+
+Put a new fact in the one file that owns it, and link to it from the others.
 
 ## Ground rules
 
@@ -8,7 +21,7 @@ The [portolan-spec](https://github.com/portolan-sdi/portolan-spec) repo is groun
 
 Before you document a command, flag, or API, verify it exists in the released tool. Run it first.
 
-This repository is personal (`mmidzik`) and is not moving to `portolan-sdi` for now. It was created from `portolan-catalog-template`, and the org governance workflows were removed.
+This repository was created from the [portolan-catalog-template](https://github.com/portolan-sdi/portolan-catalog-template) as a personal repo.
 
 ## Python environment
 
@@ -30,8 +43,6 @@ Write commits in conventional form. Commit message bodies, issue bodies, pull re
 Never bypass the CI gates. Green means green.
 
 ## This repository
-
-
 
 ### The publish boundary
 

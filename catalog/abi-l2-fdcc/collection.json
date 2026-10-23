@@ -13,7 +13,7 @@
   "id": "abi-l2-fdcc",
   "title": "GOES-18 ABI L2 Fire/Hot Spot Characterization, CONUS (virtual Zarr)",
   "description": "Fire mask, fire radiative power, temperature, area and data quality for the GOES-18 CONUS scene, about every 5 minutes, as a virtual Zarr cube. The cube holds byte-range references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is copied. NOAA produces the data. This collection is a mirror.",
-  "license": "other",
+  "license": "CC0-1.0",
   "keywords": [
     "GOES-18",
     "ABI",
@@ -171,7 +171,7 @@
   },
   "assets": {
     "icechunk": {
-      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc-catalog/goes-18/abi-l2-fdcc/icechunk/",
+      "href": "https://data.source.coop/<ACCOUNT>/goes-18-fdc/abi-l2-fdcc/icechunk/",
       "type": "application/vnd+zarr",
       "title": "Virtual Zarr cube (Icechunk repository)",
       "description": "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. Open it with icechunk and xarray, and authorize the NOAA https prefix as a virtual chunk container. See README.md.",
@@ -206,15 +206,15 @@
   "links": [
     {
       "rel": "root",
-      "href": "../../catalog.json",
+      "href": "../catalog.json",
       "type": "application/json",
-      "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"
+      "title": "GOES-18 ABI Fire/Hot Spot Characterization"
     },
     {
       "rel": "parent",
       "href": "../catalog.json",
       "type": "application/json",
-      "title": "GOES-18"
+      "title": "GOES-18 ABI Fire/Hot Spot Characterization"
     },
     {
       "rel": "describedby",
@@ -236,9 +236,9 @@
     },
     {
       "rel": "license",
-      "href": "https://www.nesdisia.noaa.gov/policy.html",
+      "href": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
       "type": "text/html",
-      "title": "NOAA NESDIS data policy"
+      "title": "CC0 1.0 Universal Public Domain Dedication"
     }
   ]
 }

@@ -48,16 +48,6 @@ these:
 | PTL-AST-003 | warning | `icechunk` asset | No `file:checksum` or `file:size`. The asset is a directory and has no single checksum. |
 | PTL-PRO-002 | info | `abi-l2-fdcc` | No `canonical` link. NOAA publishes no STAC catalog for FDC. |
 
-<!--
-When you accept one, add a row and a section explaining it, like this:
-
-| Rule | Where | Why accepted | Tracking |
-|---|---|---|---|
-| PTL-VIZ-001 | all thumbnails | WebP is not yet permitted; the size saving is 4x | portolan-spec#121 |
-
-Then add the rule id to ACCEPTED in tests/test_conformance.py. Both, or
-neither.
--->
 
 ## Validator workarounds
 

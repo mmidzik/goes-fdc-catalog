@@ -1,7 +1,7 @@
 """Write the STAC collection for a built store.
 
     uv run python -m goes_fdc.collection \\
-        --public-base https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
+        --public-base https://data.source.coop/<ACCOUNT>/goes-18-fdc
 
 Reads extent, grid, variables and projection from the store, so the metadata
 cannot drift from the data. The store is built in place under data_dir, so
@@ -32,7 +32,6 @@ EXTENSIONS = [
     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
 ]
 SATELLITE = "G18"
-SLUG = "goes-18"
 COLLECTION = "abi-l2-fdcc"
 
 
@@ -76,7 +75,7 @@ def file_props(path: Path) -> dict:
 
 
 def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, dict]) -> dict:
-    root = f"{base}/{SLUG}/{COLLECTION}"
+    root = f"{base}/{COLLECTION}"
     cube_props = {
         "proj:code": None,
         "proj:wkt2": info["wkt2"],
@@ -94,7 +93,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             "references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is "
             "copied. NOAA produces the data. This collection is a mirror."
         ),
-        "license": "other",
+        "license": "CC0-1.0",
         "keywords": ["GOES-18", "ABI", "fire", "FDC", "geostationary", "Zarr"],
         "providers": [
             {
@@ -161,14 +160,14 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             },
         },
         "links": [
-            {"rel": "root", "href": "../../catalog.json", "type": "application/json", "title": "GOES ABI Fire/Hot Spot Characterization (NOAA GOES-R)"},
-            {"rel": "parent", "href": "../catalog.json", "type": "application/json", "title": "GOES-18"},
+            {"rel": "root", "href": "../catalog.json", "type": "application/json", "title": "GOES-18 ABI Fire/Hot Spot Characterization"},
+            {"rel": "parent", "href": "../catalog.json", "type": "application/json", "title": "GOES-18 ABI Fire/Hot Spot Characterization"},
             {"rel": "describedby", "href": "./README.md", "type": "text/markdown", "title": "Collection README"},
             {"rel": "agents", "href": "./AGENTS.md", "type": "text/markdown", "title": "Collection agent guide"},
             {"rel": "via", "href": "https://registry.opendata.aws/noaa-goes/", "type": "text/html",
              "title": "NOAA GOES on the AWS Registry of Open Data"},
-            {"rel": "license", "href": "https://www.nesdisia.noaa.gov/policy.html", "type": "text/html",
-             "title": "NOAA NESDIS data policy"},
+            {"rel": "license", "href": "https://creativecommons.org/publicdomain/zero/1.0/legalcode", "type": "text/html",
+             "title": "CC0 1.0 Universal Public Domain Dedication"},
         ],
     }
 
@@ -184,7 +183,7 @@ def main() -> None:
 
     info = inspect_store(args.store)
     bbox = args.bbox or [175.62358, 14.57134, -89.62357, 53.50006]
-    out = args.catalog / SLUG / COLLECTION
+    out = args.catalog / COLLECTION
     out.mkdir(parents=True, exist_ok=True)
 
     files = {"thumbnail": file_props(out / "thumbnail.png")}

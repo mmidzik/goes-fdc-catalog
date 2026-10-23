@@ -29,7 +29,7 @@ def test_collection_is_a_complete_mirror():
     assert c["stac_extensions"] == EXTENSIONS
     roles = [p["roles"] for p in c["providers"]]
     assert "producer" in roles[0] and "host" in roles[-1]
-    assert c["license"] == "other"
+    assert c["license"] == "CC0-1.0"
     assert "updated" in c
     rels = {link["rel"] for link in c["links"]}
     assert {"root", "parent", "describedby", "agents", "via", "license"} <= rels
@@ -39,7 +39,7 @@ def test_collection_is_a_complete_mirror():
 def test_data_assets_use_absolute_https_hrefs():
     c = collection_json(INFO, BASE, [0, 0, 1, 1], FILES)
     assert set(c["assets"]) == {"icechunk", "thumbnail"}
-    assert c["assets"]["icechunk"]["href"].startswith(BASE + "/goes-18/abi-l2-fdcc/")
+    assert c["assets"]["icechunk"]["href"].startswith(BASE + "/abi-l2-fdcc/")
     assert "xarray:open_kwargs" in c["assets"]["icechunk"]
     assert c["assets"]["icechunk"]["href"].endswith("/icechunk/")
     assert c["assets"]["thumbnail"]["roles"] == ["thumbnail"]

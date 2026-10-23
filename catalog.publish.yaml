@@ -8,11 +8,11 @@
 # run with it and refuses --confirm.
 
 # The S3 URI uploads are written to. Copy it from your storage provider.
-write_prefix: s3://us-west-2.opendata.source.coop/<ACCOUNT>/goes-fdc-catalog
+write_prefix: s3://us-west-2.opendata.source.coop/<ACCOUNT>/goes-18-fdc
 
 # The public base URL that serves write_prefix. Every href in the catalog is
 # built from this, so it goes in the STAC JSON and write_prefix does not.
-public_base: https://data.source.coop/<ACCOUNT>/goes-fdc-catalog
+public_base: https://data.source.coop/<ACCOUNT>/goes-18-fdc
 
 region: us-west-2
 

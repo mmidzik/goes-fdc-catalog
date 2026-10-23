@@ -1,7 +1,7 @@
 """Render the collection thumbnail: fire radiative power on the CONUS grid.
 
     uv run --group viz python -m goes_fdc.thumbnail --time 2025-01-08T06:00 \\
-        --out catalog/goes-18/abi-l2-fdcc/thumbnail.png
+        --out catalog/abi-l2-fdcc/thumbnail.png
 
 With --time, the script reads one scan, about 60 chunk requests per variable.
 Without it, the script finds the scan with the highest total FRP, which reads
