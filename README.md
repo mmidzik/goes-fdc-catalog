@@ -50,7 +50,7 @@ normative Zarr profile until real Zarr datasets have been tested in catalogs
 ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)),
 so the Zarr asset is outside the Portolan conformance surface. The findings are
 in
-[docs/architecture.md](docs/architecture.md#10-zarr-in-portolan-findings-from-this-demo).
+[docs/architecture.md](docs/architecture.md#zarr-in-portolan-findings-from-this-demo).
 
 ## Design decisions worth knowing
 

@@ -7,7 +7,7 @@ This document describes how the catalog is built and why. [catalog/README.md](..
 [repository README](../README.md) describes how to run the pipeline. The pipeline code is in `pipeline/`. The
 published catalog is in `catalog/`.
 
-## 1. Summary
+## Summary
 
 The catalog publishes NOAA's GOES-18 ABI Fire/Hot Spot Characterization (FDC) as
 a Portolan catalog. Its one data asset is a **virtual Zarr cube** in an Icechunk
@@ -23,10 +23,10 @@ discovery layer with a Portolan catalog.
 The catalog is a Zarr test case for
 [portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132),
 which defers a normative Zarr profile until real Zarr datasets have been tested
-in catalogs. Zarr stays outside Portolan's conformance surface. Section 10
+in catalogs. Zarr stays outside Portolan's conformance surface. [Zarr in Portolan: findings from this demo](#zarr-in-portolan-findings-from-this-demo)
 collects what this catalog found.
 
-## 2. Goals and non-goals
+## Goals and non-goals
 
 Goals:
 
@@ -38,13 +38,13 @@ Goals:
 
 Non-goals for this version:
 
-- COG, GeoParquet or tile derivatives (see section 11).
+- COG, GeoParquet or tile derivatives (see [Open questions and later work](#open-questions-and-later-work)).
 - Products other than FDC.
 - Any claim of Portolan conformance for the Zarr asset.
 
-## 3. Source data
+## Source data
 
-### 3.1 The files
+### The files
 
 NOAA writes one netCDF4 (HDF5) file per scan. GOES-18 FDCC files are under
 `s3://noaa-goes18/ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/`, with names like:
@@ -69,29 +69,14 @@ radians. The projection is in the `goes_imager_projection` variable: a
 geostationary projection with `sweep_angle_axis` `x`, centered at 137.0° W for
 the files in this window.
 
-### 3.2 Copies of the data
-
-| Where                                              | What                                                                         | Access                                                                 | Notes                                                                        |
-| -------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| AWS S3 `noaa-goes18`                               | All GOES-18 ABI products, netCDF4                                            | Anonymous. SNS topic `NewGOES18Object` announces new files | Range requests and CORS work over `https`. **This catalog reads from here.** |
-| Google Cloud `gcp-public-data-goes-18`             | Same files                                                                   | Anonymous                                                              | Mirror of the AWS layout                                                     |
-| Microsoft Planetary Computer                       | STAC `goes-cmi` (cloud and moisture imagery as COGs) and `goes-glm`          | STAC API                                                               | FDC is not a STAC collection there (checked 2026-10-06)                      |
-| Azure `noaa-goes-cogs` (behind Planetary Computer) | FDC as COGs, one file per variable per scan                                  | Needs a Planetary Computer SAS token. Anonymous requests return 404    | Partial: GOES-18 for only 8 days in 2023. Not usable as a public source      |
-| Google Earth Engine                                | `NOAA/GOES/18/FDCF` and `FDCC`                                               | Earth Engine account                                                   | Raster only                                                                  |
-| NOAA CLASS and NCEI                                | Long-term archive                                                            | Free account                                                           | Order-based, not cloud-native                                                |
-| SSEC NGFS                                          | Terrain-corrected fire-pixel CSV, GeoJSON and KML from ABI scans             | <https://bin.ssec.wisc.edu/pub/volcat/fire_csv/>                       | Experimental. About 6 days stay online                                       |
-| NASA FIRMS                                         | Provisional ABI active-fire detections for the US and Canada, on the web map | Map only                                                               | The FIRMS area API lists no GOES source                                      |
-
-NOAA publishes no STAC, COG or Zarr form of FDC. No full-archive vector form of
-GOES FDC exists in any of these sources.
-
 Measured on 2026-10-06 against `https://noaa-goes18.s3.amazonaws.com`: anonymous
 listing works, a Range request returns `206` with `Accept-Ranges: bytes`, and
 the CORS rule allows `*` for GET.
 
-### 3.3 Why virtualize
+### Why virtualize
 
-FDC is a raster per scan, and fire is a few codes among 45. A fire-pixel table
+NOAA publishes no STAC, COG or Zarr form of FDC, and no full-archive vector form
+of GOES FDC exists. FDC is a raster per scan, and fire is a few codes among 45. A fire-pixel table
 would drop the cloud, clear-land, water and block-out pixels that detection
 validation needs. A converted copy of the full grid would duplicate NOAA's
 archive. A virtual cube keeps the full grid and copies none of it. FIRMS
@@ -100,26 +85,45 @@ FDC is not.
 
 The cost of this choice is a dependency on NOAA's bucket. Every pixel read is a
 Range request to `https://noaa-goes18.s3.amazonaws.com`. The catalog works only
-while those objects stay at those keys with the same bytes. The other mirrors in
-3.2 are not used. A switch to one of them means a rebuild of the references,
+while those objects stay at those keys with the same bytes. Other copies of
+the files, such as the Google Cloud mirror, are not used. A switch to one of
+them means a rebuild of the references,
 because each reference URL contains the AWS host.
 
-## 4. Build method
+## Build method
 
-```
- +-------------+   +--------------+   +--------------+   +------------+   +-----------+
- | List scans  |-->| Virtualize   |-->| Append to    |-->| Write STAC |-->| Publish   |
- | keys.py     |   | virtualize.py|   | Icechunk     |   | collection |   | publish.py|
- | obstore     |   | VirtualiZarr |   | store.py     |   | .py        |   | upload_   |
- |             |   | HDFParser    |   |              |   |            |   | data.py   |
- +-------------+   +--------------+   +--------------+   +------------+   +-----------+
+```mermaid
+flowchart TD
+    noaa[("NOAA bucket<br/>noaa-goes18")]
+
+    subgraph build["goes-fdc build"]
+        list["List scans<br/>keys.py, obstore"]
+        virt["Virtualize headers<br/>virtualize.py, VirtualiZarr HDFParser"]
+        check["Check grid and encoding signature"]
+        append["Append and commit<br/>store.py, Icechunk"]
+        list --> virt --> check --> append
+    end
+
+    store[("Icechunk repo<br/>local/publish/goes-18-fdcc/icechunk")]
+    meta["Write collection and thumbnail<br/>collection.py, thumbnail.py"]
+    cat[("catalog/")]
+    publish["Publish<br/>tools/publish.py, tools/upload_data.py"]
+    coop[("Source Cooperative<br/>goes-fdc")]
+
+    noaa -- "anonymous listing" --> list
+    noaa -- "Range reads of headers" --> virt
+    append --> store
+    store --> meta --> cat
+    cat --> publish
+    store --> publish
+    publish --> coop
 ```
 
-`goes-fdc build --start ... --end ...` runs the first three steps one UTC day at
-a time. It lists, virtualizes and commits a day before it starts the next, so a
+`goes-fdc build --start ... --end ...` runs the steps in the `goes-fdc build`
+box one UTC day at a time. It lists, virtualizes and commits a day before it starts the next, so a
 long build has only one day in memory, and a stopped build resumes at the next day.
 
-### 4.1 Listing
+### Listing
 
 The bucket listing is the index. There is no separate indexer or database.
 `keys.list_scans` makes one anonymous list call per UTC hour prefix, on a thread
@@ -130,7 +134,7 @@ Before it lists, the build reads the last `time` value in the store. It skips
 days that end before that value and drops listed scans that start before it. A
 second run over the same window adds nothing.
 
-### 4.2 Virtualization
+### Virtualization
 
 `virtualize.virtualize_scan` opens each file with VirtualiZarr's
 `open_virtual_dataset` and `HDFParser` over `https`. The parser reads the HDF5
@@ -142,7 +146,7 @@ offset and length. It reads no pixel chunks.
   stops CF time decoding of the whole file. The build decodes `t` alone.
 - The cube keeps the five pixel variables and the `time`, `x` and `y`
   coordinates. The per-scan scalars are dropped. An early Kerchunk export failed
-  on them (section 12), and a cube has no use for one scalar per scan.
+  on them ([History](#history)), and a cube has no use for one scalar per scan.
 - Each scan gets a `time` dimension of length 1. `xr.concat` stacks the scans of
   a day along `time`.
 
@@ -150,7 +154,7 @@ CF attributes survive virtualization. `scale_factor`, `add_offset` and
 `_FillValue` stay on the arrays, so a reader decodes `Temp` and `Area` the same
 way as from the netCDF.
 
-### 4.3 The time coordinate
+### The time coordinate
 
 `time` is the file's `t`, which falls mid-scan. A scan that starts
 at 18:01:17 has `t` 18:02:35.85. The start stamp in the file name is not used,
@@ -166,7 +170,7 @@ NOAA's bucket can have gaps where no file exists for a scan. The build adds no
 time step for a missing scan, so the spacing along `time` is not always 5
 minutes.
 
-### 4.4 The grid and encoding signature
+### The grid and encoding signature
 
 A virtual cube inherits the grid and encoding of the files it references, so
 every scan in one cube must share them. NOAA changes these over a satellite's
@@ -185,7 +189,7 @@ match it. A mismatch raises `EncodingMismatch` and names the facts that differ.
 Scans with a different signature belong in a separate cube. Earthmover split the
 GOES-16 archive into groups for the same reason.
 
-### 4.5 Writing the Icechunk store
+### Writing the Icechunk store
 
 `store.append` writes the day's cube with VirtualiZarr's `to_icechunk`. The
 first day creates the arrays. Each later day appends along `time`. Each day is
@@ -200,7 +204,7 @@ The repository configuration sets two things:
   is anonymous. Passing `None` is deprecated.
 - **Manifest splitting** along `time` at 288 scans (`SPLIT_SCANS`), one day of
   CONUS scans. Without it, each daily append rewrote the whole manifest of each
-  array (section 9).
+  array ([Verification and measurements](#verification-and-measurements)).
 
 The local store is built in place at `local/publish/goes-18-fdcc/icechunk`, the
 path the asset href names, so `tools/upload_data.py` uploads it unchanged. The
@@ -210,7 +214,7 @@ the name of a deleted tag, so choose tag names before publishing.
 A local filesystem Icechunk repository is not safe for concurrent commits. The
 update workflow writes to object storage and allows one run at a time.
 
-### 4.6 Catalog metadata
+### Writing the catalog metadata
 
 `goes_fdc.collection` writes `collection.json` from facts read from the store:
 the number of scans, the time extent, the grid shape, the `x` and `y` extents,
@@ -224,7 +228,7 @@ because the data is its only input. The bbox is NOAA's
 uploads the store. Its suffix allow-list bars Icechunk's suffixless files, so it
 also admits any file under a directory whose name is exactly `icechunk`.
 
-## 5. The Zarr store
+## The Zarr store
 
 The asset is an Icechunk repository: `repo`, `snapshots/`, `manifests/` and
 `transactions/`. Each snapshot is a Zarr v3 hierarchy with the cube at the root
@@ -239,7 +243,7 @@ group:
 The root group has the attribute `goes_fdc:signature`. The arrays have NOAA's CF
 attributes. The store has one resolution level and no multiscales.
 
-### 5.1 Reading
+### Reading
 
 A reader needs `icechunk`, `zarr` and `xarray`:
 
@@ -257,7 +261,7 @@ store by URL.
 
 `dask` is optional. `chunks={}` needs it, and a plain read does not.
 
-### 5.2 Change detection
+### Change detection
 
 VirtualiZarr stamps each virtual reference with the time it was written.
 Icechunk sends that time in `If-Unmodified-Since` on every chunk read. NOAA's
@@ -268,14 +272,14 @@ read.
 
 The check works only against a server that honors the header. Against a server
 that ignores it, a newer file reads without error, and a replaced file fails
-only in decompression (section 9).
+only in decompression ([Verification and measurements](#verification-and-measurements)).
 
 `noaa-goes18` is live and grows with every scan. Existing files can still change
 if NOAA reprocesses them, and this check catches that.
 
-## 6. Catalog metadata
+## Catalog metadata
 
-### 6.1 Layout
+### Layout
 
 ```
 catalog/                          root catalog, GOES FDC
@@ -302,11 +306,11 @@ catalog/                          root catalog, GOES FDC
 - Mirror fields: a `via` link to the AWS registry page, a top-level `updated`,
   NOAA NESDIS as `producer` and `licensor`, and the host last.
 
-### 6.2 Zarr and datacube fields
+### Zarr and datacube fields
 
 | Field                                                     | Value                                                      | Why                                                                         |
 | --------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------- |
-| Asset `type`                                              | `application/vnd+zarr`                                     | The media type says Zarr. It cannot say Icechunk (section 10)               |
+| Asset `type`                                              | `application/vnd+zarr`                                     | The media type says Zarr. It cannot say Icechunk ([Zarr in Portolan: findings from this demo](#zarr-in-portolan-findings-from-this-demo))               |
 | `zarr:zarr_format`, `zarr:node_type`, `zarr:consolidated` | `3`, `group`, `false`                                      | Icechunk stores have no consolidated metadata                               |
 | `xarray:open_kwargs`                                      | `{"engine": "zarr", "consolidated": false}`                | A client knows how to call `open_zarr` without a guess                      |
 | `proj:code`                                               | `null`                                                     | A geostationary grid has no EPSG code                                       |
@@ -323,7 +327,7 @@ not v2.1.0.
 A growing cube's statistics change on every append, so the collection omits
 computed statistics. The `render` hints give a viewer what it needs instead.
 
-## 7. Data access paths
+## Data access paths
 
 | Path          | What the reader needs                                                                   | What it reads                                                              |
 | ------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
@@ -337,7 +341,7 @@ A reader can also list a short window and virtualize it on the fly with no
 store. That costs a few header requests per file, about 288 files per day. The
 store caches that work, so a long window opens without the header reads.
 
-## 8. Updates and operations
+## Updates and operations
 
 | On Source Cooperative (static files)                   | On compute we run                                |
 | ------------------------------------------------------ | ------------------------------------------------ |
@@ -365,11 +369,11 @@ into one commit, since a store has one writer per commit. The hourly list job
 would stay as a reconciler, because SNS delivery is not guaranteed. The
 virtualize and append code is the same in both models.
 
-## 9. Verification and measurements
+## Verification and measurements
 
 Tool versions: VirtualiZarr 2.7.3, Icechunk 2.3.0, zarr 3.4.0, xarray 2026.9.0.
 
-### 9.1 Correctness
+### Correctness
 
 - **Read-back.** All five variables of three sampled scans are byte-identical to the raw netCDF. An earlier 24-scan build
   matched for four sampled scans.
@@ -391,7 +395,7 @@ Tool versions: VirtualiZarr 2.7.3, Icechunk 2.3.0, zarr 3.4.0, xarray 2026.9.0.
 - **Validation.** `rashid check catalog --schema` reports 0 errors. The warnings
   are in [conformance.md](conformance.md).
 
-### 9.2 The two-week build
+### The two-week build
 
 Measured from an empty store on a laptop with 32 threads (2026-10-21):
 
@@ -412,20 +416,20 @@ along `time` at 288 scans, four 24-scan appends wrote 78 to 81 KB each, and the
 rebuilt repository is 20 MB. Earthmover used manifest splitting for the same
 reason on GOES-16.
 
-### 9.3 Read cost
+### Read cost
 
 `examples/palisades-frp.ipynb` reads `Power` and `Mask` over a 6 × 9 pixel box
 for all 3,996 scans in 103 to 109 s. That is one chunk per variable per scan,
 7,992 Range requests to NOAA, from the local manifests.
 
-### 9.4 Serving the store locally
+### Serving the store locally
 
 Icechunk sends its first requests in parallel. Python's single-threaded
 `RangeHTTPServer` dropped the request for `repo`, and Icechunk reported
 `RepositoryNotFoundError`. A threaded server worked. A local preview of the
 store needs a threaded server with Range support.
 
-## 10. Zarr in Portolan: findings from this demo
+## Zarr in Portolan: findings from this demo
 
 Portolan defers a normative Zarr profile until real Zarr datasets have been
 tested in catalogs
@@ -434,7 +438,7 @@ This section collects what this catalog found as one of those tests. Each item
 is marked **measured** (observed in this repository) or **open** (a question for
 the spec).
 
-### 10.1 Gaps in the catalog metadata
+### Gaps in the catalog metadata
 
 - **The virtual chunk container (measured).** The cube's chunks live in NOAA's
   bucket, not next to the store. Icechunk reads them only after the reader
@@ -459,7 +463,7 @@ the spec).
   a directory, so it has no one `file:checksum` or `file:size` value. rashid
   0.1.8 reports PTL-AST-003 as a warning for each.
 
-### 10.2 What worked
+### What worked
 
 - **Discovery (measured).** pystac walked root, the former `goes-18` sub-catalog, and the
   collection with no special handling. The flat layout has
@@ -472,10 +476,10 @@ the spec).
 - **Validation (measured).** rashid reports 0 errors on the catalog. Zarr stays
   outside the conformance surface, and the README says so.
 
-### 10.3 Lessons from building and serving a virtual store
+### Lessons from building and serving a virtual store
 
 - **Split manifests from the start (measured).** Without manifest splitting, the
-  repository grew with the square of the number of commits (section 9.2).
+  repository grew with the square of the number of commits ([The two-week build](#the-two-week-build)).
 - **An archive is not one grid (measured).** The first GOES-18 FDCC files sit at 89.5° W and later files at 137.0° W, with different `x` and `y` axes. The
   pipeline compares a signature of each scan against the cube and stops on a
   mismatch.
@@ -493,14 +497,14 @@ the spec).
   from a laptop, and writes about 3.3 KB of manifest per scan. A read of a small
   box touches one chunk per variable per scan.
 
-## 11. Open questions and later work
+## Open questions and later work
 
 | #   | Question                                                                          | Status                                                                                                                                                        |
 | --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | Is FDC virtualizable?                                                             | **Settled 2026-10-06: yes.** Section 9.1                                                                                                                      |
-| 2   | Can the catalog state a geostationary CRS?                                        | **Settled for STAC: `proj:wkt2` with `proj:code` null.** Section 10.2. The Zarr `proj` and `spatial` conventions are not used in the store and are not tested |
-| 3   | Can the virtual chunk container read NOAA over `https`?                           | **Settled: yes, with `http_store()` and `HttpAccess`.** Section 4.5                                                                                           |
-| 4   | What does the Portolan validator do with a Zarr asset?                            | **Settled: 0 errors, PTL-AST-003 warnings.** Section 10.1                                                                                                     |
+| 1   | Is FDC virtualizable?                                                             | **Settled 2026-10-06: yes.** [Correctness](#correctness)                                                                                                                      |
+| 2   | Can the catalog state a geostationary CRS?                                        | **Settled for STAC: `proj:wkt2` with `proj:code` null.** [What worked](#what-worked). The Zarr `proj` and `spatial` conventions are not used in the store and are not tested |
+| 3   | Can the virtual chunk container read NOAA over `https`?                           | **Settled: yes, with `http_store()` and `HttpAccess`.** [Writing the Icechunk store](#writing-the-icechunk-store)                                                                                           |
+| 4   | What does the Portolan validator do with a Zarr asset?                            | **Settled: 0 errors, PTL-AST-003 warnings.** [Gaps in the catalog metadata](#gaps-in-the-catalog-metadata)                                                                                                     |
 | 5   | License value                                                                     | **Settled: `CC0-1.0`.** NOAA's Open Data Dissemination program releases its data under CC0-1.0. See the [catalog README](../catalog/README.md#license)        |
 | 6   | Does Source Cooperative support conditional writes, CORS and Range for the store? | Open. Check before the first upload                                                                                                                           |
 | 7   | How to re-sync after NOAA reprocesses a file                                      | Open. Icechunk detects the change. A re-sync rule is not defined                                                                                              |
@@ -520,7 +524,7 @@ Later, not in this version:
 - **A small client library** in the style of `aef-loader`: key index, virtual
   reader, grouping by sector.
 
-## 12. History
+## History
 
 - **Stage 1, 24-scan pilot (2026-10-06).** GOES-18 FDCC, 2025-01-07 18:00 to
   20:00 UTC. Settled questions 1 and 3. The pilot built both an Icechunk repo
