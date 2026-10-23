@@ -65,8 +65,9 @@ and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md)
 says how to get the raw integers.
 
 Each scan also has NOAA's own summary values, stored as variables along
-`time`: the number of fire pixels, outlier counts, and the minimum, maximum,
-mean and standard deviation of fire temperature, area and radiative power. The
+`time`. They include the number of fire pixels and the outlier counts. They
+also include the minimum, maximum, mean and standard deviation of fire
+temperature, area and radiative power. The
 collection has no statistics of its own, because they would change with every
 scan the cube gains.
 

@@ -26,7 +26,7 @@ check the `orbital_slot` attribute in the file for the date you need.
 Measured on a one-hour build of the store (2025-01-08 07:00 to 08:00 UTC, 12
 scans):
 
-- The five pixel variables are virtual `time` × `y` × `x` arrays, chunked
+- The pixel variables `Mask`, `DQF`, `Power`, `Temp` and `Area` are virtual `time` × `y` × `x` arrays, chunked
   1 × 250 × 250 as in NOAA's files.
 - NOAA's per-scan values are `time` variables: the fire pixel counts
   (`total_number_of_pixels_with_fires_detected` and the three
@@ -115,7 +115,7 @@ store. The Source Cooperative URL is untested.
 - **A fill value can mean a missing variable.** When a file has no array for
   one of the five pixel variables, the build adds an array with no chunk
   references for that scan (`virtualize.fill_missing`), so every read returns
-  the fill value. The build log names the file.
+  the fill value. The build log gives the file name.
 - **Gaps.** NOAA's bucket can have no file for a scan, and the cube then has no
   time step for it. Do not assume a fixed 5-minute spacing along `time`. A line
   plot joins the two sides of a gap, which hides it.
