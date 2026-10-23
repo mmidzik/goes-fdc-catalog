@@ -39,7 +39,7 @@ def test_collection_is_a_complete_mirror():
 def test_data_assets_use_absolute_https_hrefs():
     c = collection_json(INFO, BASE, [0, 0, 1, 1], FILES)
     assert set(c["assets"]) == {"icechunk", "thumbnail"}
-    assert c["assets"]["icechunk"]["href"].startswith(BASE + "/abi-l2-fdcc/")
+    assert c["assets"]["icechunk"]["href"].startswith(BASE + "/goes-18-fdcc/")
     assert "xarray:open_kwargs" in c["assets"]["icechunk"]
     assert c["assets"]["icechunk"]["href"].endswith("/icechunk/")
     assert c["assets"]["thumbnail"]["roles"] == ["thumbnail"]

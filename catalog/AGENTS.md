@@ -1,9 +1,9 @@
-# AGENTS.md — GOES-18 ABI fire/hot spot characterization
+# AGENTS.md — GOES fire/hot spot characterization
 
 The collection guide with the file layout, the read recipe and the traps is
-[abi-l2-fdcc/AGENTS.md](abi-l2-fdcc/AGENTS.md). Humans want
+[goes-18-fdcc/AGENTS.md](goes-18-fdcc/AGENTS.md). Humans want
 [README.md](README.md) for the variables and codes, and
-[abi-l2-fdcc/README.md](abi-l2-fdcc/README.md) for the recipe.
+[goes-18-fdcc/README.md](goes-18-fdcc/README.md) for the recipe.
 
 Guidance for AI agents and automated clients working with this catalog.
 
@@ -13,12 +13,12 @@ came from, it does not belong in this file.
 
 ## What this catalog holds
 
-One collection. The catalog is not published yet. Public root, provisional:
-`https://data.source.coop/<ACCOUNT>/goes-18-fdc/catalog.json`
+One collection so far. The catalog is not published yet. Public root, provisional:
+`https://data.source.coop/<ACCOUNT>/goes-fdc/catalog.json`
 
 | collection | holds |
 |---|---|
-| [`abi-l2-fdcc`](abi-l2-fdcc/collection.json) | A virtual Zarr cube over 3,996 GOES-18 CONUS FDC scans, 2025-01-07 to 2025-01-20 UTC, in one Icechunk repository |
+| [`goes-18-fdcc`](goes-18-fdcc/collection.json) | A virtual Zarr cube over 3,996 GOES-18 CONUS FDC scans, 2025-01-07 to 2025-01-20 UTC, in one Icechunk repository |
 
 NOAA and NESDIS produce the data and are the authoritative source. This catalog is a **mirror**, and the pixel bytes are in NOAA's `noaa-goes18` bucket.
 
@@ -26,7 +26,7 @@ NOAA and NESDIS produce the data and are the authoritative source. This catalog 
 
 The file layout, the read recipe, the traps, and a measured check value all
 live in the collection guide:
-[`abi-l2-fdcc/AGENTS.md`](abi-l2-fdcc/AGENTS.md). Read it
+[`goes-18-fdcc/AGENTS.md`](goes-18-fdcc/AGENTS.md). Read it
 before you open the cube.
 
 These traps most often produce a confident wrong answer:

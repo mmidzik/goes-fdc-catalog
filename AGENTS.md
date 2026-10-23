@@ -1,6 +1,6 @@
 # goes-fdc-catalog
 
-A Portolan catalog of NOAA's GOES-18 ABI Fire/Hot Spot Characterization as a virtual Zarr cube.
+A Portolan catalog of NOAA's GOES ABI Fire/Hot Spot Characterization as virtual Zarr cubes. The first collection is GOES-18 CONUS.
 
 ## Where things are documented
 
@@ -10,7 +10,7 @@ A Portolan catalog of NOAA's GOES-18 ABI Fire/Hot Spot Characterization as a vir
 | `docs/architecture.md` | Methods. It covers the source data, the build, the Zarr store, the catalog metadata, the measurements, and the Zarr findings. |
 | `catalog/README.md` | The data, for humans: variables, codes, coverage, license, provenance. Published. |
 | `catalog/AGENTS.md` | A short pointer for machine clients. Published. |
-| `catalog/abi-l2-fdcc/README.md` and `AGENTS.md` | The read recipe, measured file layout, and the traps. Published. |
+| `catalog/goes-18-fdcc/README.md` and `AGENTS.md` | The read recipe, measured file layout, and the traps. Published. |
 | `docs/conformance.md` | Validator findings and the accepted ones. |
 
 Put a new fact in the one file that owns it, and link to it from the others.

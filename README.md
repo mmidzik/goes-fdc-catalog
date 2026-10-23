@@ -1,8 +1,9 @@
 # goes-fdc-catalog
 
 A [Portolan](https://github.com/portolan-sdi/portolan-spec) catalog mirroring
-**NOAA GOES-18 ABI fire detections** (Fire/Hot Spot Characterization, FDC) as a
-**virtual Zarr cube**.
+**NOAA GOES ABI fire detections** (Fire/Hot Spot Characterization, FDC) as
+**virtual Zarr cubes**, one collection per satellite and scan sector. The first
+collection is GOES-18 CONUS.
 
 Catalog metadata and the build pipeline live in this repository. The Icechunk
 repository that holds the cube goes to Source Cooperative. The pixel data stays
@@ -29,15 +30,15 @@ plots fire radiative power over the Palisades burn area.
 
 ## What it publishes
 
-One GOES-18 catalog with one collection, `abi-l2-fdcc`: the CONUS FDC product. It
-holds 3,996 scans from 2025-01-07 to 2025-01-20 UTC, one 1500 × 2500 grid about
+One catalog for GOES FDC, with one collection per satellite and scan sector. The
+first collection, `goes-18-fdcc`, is the GOES-18 CONUS product. It holds 3,996 scans from 2025-01-07 to 2025-01-20 UTC, one 1500 × 2500 grid about
 every 5 minutes, with five variables: `Mask`, `DQF`, `Power`, `Temp`, `Area`.
 
 ```
 catalog/
-  catalog.json                 root: GOES-18 FDC
-  abi-l2-fdcc/collection.json  the CONUS collection
-    icechunk/                  the cube, on Source Cooperative (not in git)
+  catalog.json                  root: GOES FDC
+  goes-18-fdcc/collection.json  GOES-18, CONUS sector
+    icechunk/                   the cube, on Source Cooperative (not in git)
 ```
 
 The one data asset is an Icechunk repository. It holds manifests, never pixels.
@@ -66,10 +67,11 @@ files it references, and NOAA changed these over the life of GOES-18. The build
 checks a signature of every scan and stops on a mismatch. This could be adjusted
 in future iterations.
 
-**One flat GOES-18 catalog.** The collection is a direct child of the root catalog,
-with no sub-catalog per satellite. Collection ids follow
-`abi-<level>-<product><sector>`, so other GOES-18 sectors can be added as
-siblings.
+**One collection per satellite and sector.** The collections are direct
+children of the root catalog, with no sub-catalog level. Collection ids follow
+`goes-<satellite>-fdc<sector>`, in the order of NOAA's buckets and Earth Engine
+(`NOAA/GOES/18/FDCC`). A new satellite or sector is a sibling collection, and no
+existing URL moves.
 
 **No server.** Readers hit static files on Source Cooperative and NOAA's bucket.
 The update job is a GitHub Action with a manual trigger.
@@ -97,7 +99,7 @@ uv run goes-fdc build --start 2025-01-07T00:00 --end 2025-01-21T00:00
 ```
 
 The build reads netCDF headers only and needs no NOAA credentials. It writes the
-store to `local/publish/abi-l2-fdcc/icechunk`, the path that
+store to `local/publish/goes-18-fdcc/icechunk`, the path that
 `tools/upload_data.py` uploads.
 
 ## Working on this repository
@@ -117,9 +119,9 @@ uploads:
 
 ```bash
 uv run python -m goes_fdc.collection \
-    --public-base https://data.source.coop/<ACCOUNT>/goes-18-fdc
+    --public-base https://data.source.coop/<ACCOUNT>/goes-fdc
 uv run --group viz python -m goes_fdc.thumbnail --time 2025-01-08T06:00 \
-    --out catalog/abi-l2-fdcc/thumbnail.png
+    --out catalog/goes-18-fdcc/thumbnail.png
 uv run python tools/publish.py          # dry run: catalog metadata
 uv run python tools/upload_data.py      # dry run: the Icechunk repo
 uv run --group examples jupyter nbconvert --to notebook --execute --inplace \
@@ -137,7 +139,7 @@ Done:
   grid and encoding check on every scan.
 - The two-week cube, built locally: 3,996 scans, tagged `demo-2025-01` in the
   Icechunk repository.
-- The catalog, with the root and the `abi-l2-fdcc` collection with the
+- The catalog, with the root and the `goes-18-fdcc` collection with the
   Icechunk asset, thumbnail, README and AGENTS.md at each level.
 - `examples/palisades-frp.ipynb`, which reads the cube through the catalog.
 

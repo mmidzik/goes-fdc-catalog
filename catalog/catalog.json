@@ -4,19 +4,19 @@
   "stac_extensions": [
     "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
   ],
-  "id": "goes-18-fdc",
-  "title": "GOES-18 ABI Fire/Hot Spot Characterization",
-  "description": "Virtual Zarr view of NOAA's GOES-18 ABI Level 2 Fire/Hot Spot Characterization (FDC) product for the CONUS sector, read from the netCDF files in the public noaa-goes18 bucket. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data.",
+  "id": "goes-fdc",
+  "title": "GOES ABI Fire/Hot Spot Characterization",
+  "description": "Virtual Zarr views of NOAA's GOES ABI Level 2 Fire/Hot Spot Characterization (FDC) product, read from the netCDF files in NOAA's public noaa-goes* buckets. Each collection is one satellite and one scan sector. The first is GOES-18 CONUS. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data.",
   "links": [
     {
       "rel": "root",
       "href": "./catalog.json",
       "type": "application/json",
-      "title": "GOES-18 ABI Fire/Hot Spot Characterization"
+      "title": "GOES ABI Fire/Hot Spot Characterization"
     },
     {
       "rel": "child",
-      "href": "./abi-l2-fdcc/collection.json",
+      "href": "./goes-18-fdcc/collection.json",
       "type": "application/json",
       "title": "GOES-18 ABI L2 Fire/Hot Spot Characterization, CONUS (virtual Zarr)"
     },

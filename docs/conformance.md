@@ -46,7 +46,7 @@ these:
 | Rule | Severity | Where | Reason |
 |---|---|---|---|
 | PTL-AST-003 | warning | `icechunk` asset | No `file:checksum` or `file:size`. The asset is a directory and has no single checksum. |
-| PTL-PRO-002 | info | `abi-l2-fdcc` | No `canonical` link. NOAA publishes no STAC catalog for FDC. |
+| PTL-PRO-002 | info | `goes-18-fdcc` | No `canonical` link. NOAA publishes no STAC catalog for FDC. |
 
 
 ## Validator workarounds

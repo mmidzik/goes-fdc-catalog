@@ -15,7 +15,7 @@ scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z (measured from the `time`
 coordinate). Dimensions `time` (3996) × `y` (1500) × `x` (2500). The Icechunk tag
 `demo-2025-01` pins this snapshot. Variables `Mask`, `DQF`, `Power`, `Temp`,
 `Area`. Public root, provisional:
-`https://data.source.coop/<ACCOUNT>/goes-18-fdc/`.
+`https://data.source.coop/<ACCOUNT>/goes-fdc/`.
 
 The orbital slot recorded in the NOAA files read for this catalog (2025-01-07
 and 2025-01-08) is `GOES-West`. A satellite's slot can change over its life, so

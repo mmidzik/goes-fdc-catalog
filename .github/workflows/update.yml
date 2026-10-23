@@ -67,7 +67,7 @@ jobs:
           if unset_placeholders(config):
               sys.exit("catalog.publish.yaml still carries placeholders")
           prefix = config["write_prefix"].rstrip("/")
-          print(f"store={prefix}/abi-l2-fdcc/icechunk")
+          print(f"store={prefix}/goes-18-fdcc/icechunk")
           print(f"public_base={config['public_base'].rstrip('/')}")
           EOF
 
@@ -97,4 +97,4 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: collection
-          path: catalog/abi-l2-fdcc/collection.json
+          path: catalog/goes-18-fdcc/collection.json

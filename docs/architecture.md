@@ -33,8 +33,8 @@ Goals:
 - Never copy the dataset.
 - No always-on server. Readers hit static files only.
 - Stay appendable. NOAA adds a GOES-18 CONUS scan about every 5 minutes.
-- Lay out the catalog so other GOES-18 FDC sectors can be added as sibling
-  collections.
+- Lay out the catalog so other satellites and sectors can be added as sibling
+  collections, with no change to an existing URL.
 
 Non-goals for this version:
 
@@ -61,7 +61,7 @@ Each file holds five pixel variables on a 1500 × 2500 grid, plus per-scan
 scalars (`t`, `time_bounds`, view angles, summary counts and statistics). All
 five pixel variables use 250 × 250 HDF5 chunks with gzip and shuffle. A file is
 about 226 KB. The measured layout of each variable is in the
-[collection agent guide](../catalog/abi-l2-fdcc/AGENTS.md), and the code tables
+[collection agent guide](../catalog/goes-18-fdcc/AGENTS.md), and the code tables
 are in [catalog/README.md](../catalog/README.md).
 
 The grid is the ABI geostationary fixed grid. `x` and `y` are scan angles in
@@ -202,7 +202,7 @@ The repository configuration sets two things:
   CONUS scans. Without it, each daily append rewrote the whole manifest of each
   array (section 9).
 
-The local store is built in place at `local/publish/abi-l2-fdcc/icechunk`, the
+The local store is built in place at `local/publish/goes-18-fdcc/icechunk`, the
 path the asset href names, so `tools/upload_data.py` uploads it unchanged. The
 demo snapshot has the tag `demo-2025-01`. Icechunk refuses to create a tag with
 the name of a deleted tag, so choose tag names before publishing.
@@ -250,7 +250,7 @@ A reader needs `icechunk`, `zarr` and `xarray`:
 4. Call `xr.open_zarr(session.store, consolidated=False)`.
 
 The full recipe is in the
-[collection README](../catalog/abi-l2-fdcc/README.md#access). Without step 2,
+[collection README](../catalog/goes-18-fdcc/README.md#access). Without step 2,
 the open fails with `InvalidInputError` and a message that identifies the container
 to authorize. A generic Zarr client that does not know Icechunk cannot open the
 store by URL.
@@ -278,19 +278,23 @@ if NOAA reprocesses them, and this check catches that.
 ### 6.1 Layout
 
 ```
-catalog/                          root catalog, GOES-18 FDC
+catalog/                          root catalog, GOES FDC
   catalog.json  README.md  AGENTS.md
-  abi-l2-fdcc/                    collection
+  goes-18-fdcc/                   collection, GOES-18 CONUS
     collection.json
     README.md  AGENTS.md  thumbnail.png
     (icechunk/ on Source Cooperative only)
 ```
 
-- The catalog holds GOES-18 only, so the collection is a direct child of the root catalog.
-  An earlier layout had a `goes-18` sub-catalog, which repeated the
-  same facts in one more README and AGENTS.md. The demo dropped it.
-- Collection id rule: `abi-<level>-<product><sector>`, lowercase. Later siblings
-  could be `abi-l2-fdcf`, and `abi-l2-fdcm1` and `abi-l2-fdcm2`.
+- One catalog for GOES FDC. Each collection covers one satellite and one scan
+  sector, because a virtual cube needs one grid. The collections are direct
+  children of the root catalog. An earlier layout had a sub-catalog per
+  satellite, which repeated the same facts in one more README and AGENTS.md. The
+  spec asks for sub-catalogs at twenty or more children, and GOES-16 to GOES-19
+  with three sectors each stay below that.
+- Collection id rule: `goes-<satellite>-fdc<sector>`, lowercase. The order
+  follows NOAA's bucket layout and the Earth Engine ids (`NOAA/GOES/18/FDCC`).
+  Later siblings could be `goes-18-fdcf` and `goes-19-fdcc`.
 - The collection has no items, because the cube is the access path. The spec allows a collection with
   assets and no items. About 288 scans per day makes static per-scan items
   heavy.
@@ -457,8 +461,8 @@ the spec).
 
 ### 10.2 What worked
 
-- **Discovery (measured).** pystac walked root, the former `goes-18`
-  sub-catalog, and `abi-l2-fdcc` with no special handling. The flat layout has
+- **Discovery (measured).** pystac walked root, the former `goes-18` sub-catalog, and the
+  collection with no special handling. The flat layout has
   one level less and is not re-run yet. The asset gives the href, media type,
   and `xarray:open_kwargs`, and that is enough to call `xarray.open_zarr` once
   the store is open.
@@ -506,8 +510,8 @@ Later, not in this version:
 
 - **Two years of scans** on a cloud machine with the same `goes-fdc build`
   command. Measure manifest size and open time.
-- **Other GOES-18 sectors** (full disk `FDCF`, mesoscale `FDCM`) as sibling
-  collections, one cube per grid.
+- **Other satellites and sectors** (GOES-19, full disk `FDCF`, mesoscale
+  `FDCM`) as sibling collections, one cube per grid.
 - **An on-request COG endpoint.** A small stateless function renders one scan
   from the references, behind a CDN. Only if a raster-file consumer needs it. It
   would be the first part of this design with real infrastructure.

@@ -38,7 +38,7 @@ config.set_virtual_chunk_container(icechunk.VirtualChunkContainer(NOAA, icechunk
 credentials = icechunk.containers_credentials({NOAA: icechunk.Credentials.HttpAccess()})
 
 storage = icechunk.http_storage(
-    "https://data.source.coop/<ACCOUNT>/goes-18-fdc/abi-l2-fdcc/icechunk"
+    "https://data.source.coop/<ACCOUNT>/goes-fdc/goes-18-fdcc/icechunk"
 )
 repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_access=credentials)
 session = repo.readonly_session(tag="demo-2025-01")   # or branch="main" for the latest

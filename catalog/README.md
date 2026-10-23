@@ -1,7 +1,8 @@
-# Fire/hot spot characterization from GOES-18
+# Fire/hot spot characterization from GOES satellites
 
-Fire detections from the Advanced Baseline Imager (ABI) on NOAA's GOES-18
-satellite, as a virtual Zarr cube. Every pixel of every scan is in the cube:
+Fire detections from the Advanced Baseline Imager (ABI) on NOAA's GOES
+satellites, as virtual Zarr cubes. Each collection covers one satellite and one
+scan sector. The first collection is GOES-18 CONUS. Every pixel of every scan is in the cube:
 fire, clear land, cloud, water and the pixels the algorithm could not process.
 The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
@@ -17,12 +18,12 @@ catalog is a **mirror** of it.
 - **Browse the metadata**: TODO, needs the published STAC root
 - **Read the build**:
   [the repository on GitHub](https://github.com/mmidzik/goes-fdc-catalog)
-- **The collection**: the [abi-l2-fdcc README](abi-l2-fdcc/README.md) and its
-  [agent guide](abi-l2-fdcc/AGENTS.md)
+- **The collection**: the [goes-18-fdcc README](goes-18-fdcc/README.md) and its
+  [agent guide](goes-18-fdcc/AGENTS.md)
 
 ## What is here
 
-One collection, `abi-l2-fdcc`: NOAA's Level 2 Fire/Hot Spot Characterization
+One collection so far, `goes-18-fdcc`: NOAA's Level 2 Fire/Hot Spot Characterization
 product (FDC) for the GOES-18 CONUS sector.
 
 |            |                                                                       |
@@ -57,7 +58,7 @@ Measured from the file headers. Each variable is a `time` × `y` × `x` array.
 | `Area`   | Fire Area            | uint16  | m2    | 65535      | `scale_factor` 60.98, `add_offset` 4000     |
 
 `Temp` and `Area` are stored as scaled integers. Most readers apply the scaling
-and the fill value on read. The collection [agent guide](abi-l2-fdcc/AGENTS.md)
+and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md)
 says how to get the raw integers.
 
 ### Fire mask codes
@@ -138,7 +139,7 @@ The update workflow has not run yet.
 
 Open the Icechunk repository with `icechunk`, `zarr` and `xarray`, and authorize
 NOAA's bucket as a virtual chunk container. The tested recipe is in the
-[collection README](abi-l2-fdcc/README.md#access). For a worked example that
+[collection README](goes-18-fdcc/README.md#access). For a worked example that
 starts from this catalog, see `examples/palisades-frp.ipynb` in the
 [source repository](https://github.com/mmidzik/goes-fdc-catalog).
 

@@ -13,7 +13,7 @@ from .virtualize import SIGNATURE_ATTR, base_url, check_signature
 
 # The store is built in place under data_dir (catalog.publish.yaml), at the
 # path its asset href names, so tools/upload_data.py uploads it unchanged.
-DEFAULT_STORE = Path("local/publish/abi-l2-fdcc/icechunk")
+DEFAULT_STORE = Path("local/publish/goes-18-fdcc/icechunk")
 
 
 # Scans per manifest along `time`. Without splitting, every append rewrites the

@@ -1,7 +1,7 @@
 """Write the STAC collection for a built store.
 
     uv run python -m goes_fdc.collection \\
-        --public-base https://data.source.coop/<ACCOUNT>/goes-18-fdc
+        --public-base https://data.source.coop/<ACCOUNT>/goes-fdc
 
 Reads extent, grid, variables and projection from the store, so the metadata
 cannot drift from the data. The store is built in place under data_dir, so
@@ -32,7 +32,7 @@ EXTENSIONS = [
     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
 ]
 SATELLITE = "G18"
-COLLECTION = "abi-l2-fdcc"
+COLLECTION = "goes-18-fdcc"
 
 
 def _iso(t) -> str:
@@ -160,8 +160,8 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             },
         },
         "links": [
-            {"rel": "root", "href": "../catalog.json", "type": "application/json", "title": "GOES-18 ABI Fire/Hot Spot Characterization"},
-            {"rel": "parent", "href": "../catalog.json", "type": "application/json", "title": "GOES-18 ABI Fire/Hot Spot Characterization"},
+            {"rel": "root", "href": "../catalog.json", "type": "application/json", "title": "GOES ABI Fire/Hot Spot Characterization"},
+            {"rel": "parent", "href": "../catalog.json", "type": "application/json", "title": "GOES ABI Fire/Hot Spot Characterization"},
             {"rel": "describedby", "href": "./README.md", "type": "text/markdown", "title": "Collection README"},
             {"rel": "agents", "href": "./AGENTS.md", "type": "text/markdown", "title": "Collection agent guide"},
             {"rel": "via", "href": "https://registry.opendata.aws/noaa-goes/", "type": "text/html",
