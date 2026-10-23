@@ -3,9 +3,8 @@
 Status: demo. Scope: GOES-18 `ABI-L2-FDCC`, full CONUS scene, 2025-01-07 to
 2025-01-20, built locally. Updated 2026-10-22.
 
-This document describes how the catalog is built and why. What the data means is
-in [catalog/README.md](../catalog/README.md). How to run the pipeline is in the
-[repository README](../README.md). The pipeline code is in `pipeline/`. The
+This document describes how the catalog is built and why. [catalog/README.md](../catalog/README.md) describes the data. The
+[repository README](../README.md) describes how to run the pipeline. The pipeline code is in `pipeline/`. The
 published catalog is in `catalog/`.
 
 ## 1. Summary
@@ -70,11 +69,11 @@ radians. The projection is in the `goes_imager_projection` variable: a
 geostationary projection with `sweep_angle_axis` `x`, centered at 137.0° W for
 the files in this window.
 
-### 3.2 Where the data lives
+### 3.2 Copies of the data
 
 | Where                                              | What                                                                         | Access                                                                 | Notes                                                                        |
 | -------------------------------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| AWS S3 `noaa-goes18`                               | All GOES-18 ABI products, netCDF4                                            | Anonymous, no account. SNS topic `NewGOES18Object` announces new files | Range requests and CORS work over `https`. **This catalog reads from here.** |
+| AWS S3 `noaa-goes18`                               | All GOES-18 ABI products, netCDF4                                            | Anonymous. SNS topic `NewGOES18Object` announces new files | Range requests and CORS work over `https`. **This catalog reads from here.** |
 | Google Cloud `gcp-public-data-goes-18`             | Same files                                                                   | Anonymous                                                              | Mirror of the AWS layout                                                     |
 | Microsoft Planetary Computer                       | STAC `goes-cmi` (cloud and moisture imagery as COGs) and `goes-glm`          | STAC API                                                               | FDC is not a STAC collection there (checked 2026-10-06)                      |
 | Azure `noaa-goes-cogs` (behind Planetary Computer) | FDC as COGs, one file per variable per scan                                  | Needs a Planetary Computer SAS token. Anonymous requests return 404    | Partial: GOES-18 for only 8 days in 2023. Not usable as a public source      |
@@ -103,7 +102,7 @@ The cost of this choice is a dependency on NOAA's bucket. Every pixel read is a
 Range request to `https://noaa-goes18.s3.amazonaws.com`. The catalog works only
 while those objects stay at those keys with the same bytes. The other mirrors in
 3.2 are not used. A switch to one of them means a rebuild of the references,
-because each reference names the AWS host.
+because each reference URL contains the AWS host.
 
 ## 4. Build method
 
@@ -118,13 +117,13 @@ because each reference names the AWS host.
 
 `goes-fdc build --start ... --end ...` runs the first three steps one UTC day at
 a time. It lists, virtualizes and commits a day before it starts the next, so a
-long build holds one day in memory, and a stopped build resumes at the next day.
+long build has only one day in memory, and a stopped build resumes at the next day.
 
 ### 4.1 Listing
 
 The bucket listing is the index. There is no separate indexer or database.
 `keys.list_scans` makes one anonymous list call per UTC hour prefix, on a thread
-pool, with `obstore`. It keeps the keys whose start stamp falls in the window
+pool, with `obstore`. It keeps the keys whose start stamp is inside the window
 and sorts them by start time.
 
 Before it lists, the build reads the last `time` value in the store. It skips
@@ -139,7 +138,7 @@ metadata with Range requests and records, for each chunk, the file URL, byte
 offset and length. It reads no pixel chunks.
 
 - `t`, `x` and `y` are loaded as values. Everything else stays virtual.
-- `decode_times=False`. Some files carry the fill value in `time_bounds`, which
+- `decode_times=False`. Some files have the fill value in `time_bounds`, which
   stops CF time decoding of the whole file. The build decodes `t` alone.
 - The cube keeps the five pixel variables and the `time`, `x` and `y`
   coordinates. The per-scan scalars are dropped. An early Kerchunk export failed
@@ -153,7 +152,7 @@ way as from the netCDF.
 
 ### 4.3 The time coordinate
 
-`time` is the file's `t`, which falls mid-scan. For example, a scan that starts
+`time` is the file's `t`, which falls mid-scan. A scan that starts
 at 18:01:17 has `t` 18:02:35.85. The start stamp in the file name is not used,
 because `t` is the value NOAA records for the scan.
 
@@ -171,8 +170,7 @@ minutes.
 
 A virtual cube inherits the grid and encoding of the files it references, so
 every scan in one cube must share them. NOAA changes these over a satellite's
-life. The first GOES-18 FDCC files (2022/131) sit at -89.5° as `GOES-Test`, and
-the later ones at -137.0°, with different `x` and `y` axes.
+life. The first GOES-18 FDCC files (2022/131) sit at 89.5° W as `GOES-Test`, and the later ones at 137.0° W, with different `x` and `y` axes.
 
 `virtualize.signature` records, for each scan:
 
@@ -224,7 +222,7 @@ because the data is its only input. The bbox is NOAA's
 `goes_fdc.thumbnail` renders `Power` from one scan. The template's
 `tools/publish.py` syncs `catalog/` to the bucket. `tools/upload_data.py`
 uploads the store. Its suffix allow-list bars Icechunk's suffixless files, so it
-also admits any file under a directory named exactly `icechunk`.
+also admits any file under a directory whose name is exactly `icechunk`.
 
 ## 5. The Zarr store
 
@@ -238,7 +236,7 @@ group:
 | `time`                                 | 3,996                | Native chunks, mid-scan times                                   |
 | `x`, `y`                               | 2500, 1500           | Native chunks, scan angles in radians                           |
 
-The root group carries `goes_fdc:signature`. The arrays carry NOAA's CF
+The root group has the attribute `goes_fdc:signature`. The arrays have NOAA's CF
 attributes. The store has one resolution level and no multiscales.
 
 ### 5.1 Reading
@@ -253,7 +251,7 @@ A reader needs `icechunk`, `zarr` and `xarray`:
 
 The full recipe is in the
 [collection README](../catalog/abi-l2-fdcc/README.md#access). Without step 2,
-the open fails with `InvalidInputError` and a message that names the container
+the open fails with `InvalidInputError` and a message that identifies the container
 to authorize. A generic Zarr client that does not know Icechunk cannot open the
 store by URL.
 
@@ -288,12 +286,12 @@ catalog/                          root catalog, GOES-18 FDC
     (icechunk/ on Source Cooperative only)
 ```
 
-- The catalog holds GOES-18 only, so the root catalog holds the collection
-  directly. An earlier layout had a `goes-18` sub-catalog, which repeated the
+- The catalog holds GOES-18 only, so the collection is a direct child of the root catalog.
+  An earlier layout had a `goes-18` sub-catalog, which repeated the
   same facts in one more README and AGENTS.md. The demo dropped it.
 - Collection id rule: `abi-<level>-<product><sector>`, lowercase. Later siblings
   could be `abi-l2-fdcf`, and `abi-l2-fdcm1` and `abi-l2-fdcm2`.
-- No items. The cube is the access path, and the spec allows a collection with
+- The collection has no items, because the cube is the access path. The spec allows a collection with
   assets and no items. About 288 scans per day makes static per-scan items
   heavy.
 - No empty collections for products not yet built.
@@ -310,7 +308,7 @@ catalog/                          root catalog, GOES-18 FDC
 | `proj:code`                                               | `null`                                                     | A geostationary grid has no EPSG code                                       |
 | `proj:wkt2`, `proj:shape`                                 | WKT2 of `goes_imager_projection`, `[1500, 2500]`           | Enough to convert a longitude and latitude box to scan angles with `pyproj` |
 | `cube:dimensions`                                         | `time`, `y`, `x`, with `y` and `x` in `rad`                | Describes the cube axes                                                     |
-| `cube:variables`                                          | The five variables with units                              |                                                                             |
+| `cube:variables`                                          | `Mask`, `DQF`, `Power`, `Temp`, `Area`, with units |                                                                             |
 | `renders`                                                 | `frp`: `Power` on `inferno`, rescale 0 to 200, nodata `-9` | Display hints in place of statistics                                        |
 
 The collection declares the `zarr` v1.1.0, `xarray-assets` v1.0.0, `datacube`
@@ -318,8 +316,8 @@ v2.2.0, `projection` v2.0.0, `render` v2.0.0 and `file` v2.1.0 extensions.
 Portolan pins the render extension at v2.0.0, so the collection uses v2.0.0 and
 not v2.1.0.
 
-The collection carries no computed statistics. A growing cube's statistics
-change on every append. The `render` hints carry what a viewer needs instead.
+A growing cube's statistics change on every append, so the collection omits
+computed statistics. The `render` hints give a viewer what it needs instead.
 
 ## 7. Data access paths
 
@@ -373,7 +371,7 @@ Tool versions: VirtualiZarr 2.7.3, Icechunk 2.3.0, zarr 3.4.0, xarray 2026.9.0.
   matched for four sampled scans.
 - **Decoded values.** Decoded `Temp` runs 400 to 2693 K over 24 scans.
 - **Append.** Two runs over 2025-01-07 18:00 to 20:00 UTC added 12 scans each,
-  and a third run added 0. The time axis stays unique and monotonic.
+  and a third run added 0. The time axis remains unique and monotonic.
 - **HTTP read from a clean environment.** A fresh environment with only
   `icechunk`, `zarr` and `xarray` opened the store through
   `icechunk.http_storage`, served from `local/publish` by a local HTTP server.
@@ -474,8 +472,7 @@ the spec).
 
 - **Split manifests from the start (measured).** Without manifest splitting, the
   repository grew with the square of the number of commits (section 9.2).
-- **An archive is not one grid (measured).** The first GOES-18 FDCC files sit at
-  -89.5° and later files at -137.0°, with different `x` and `y` axes. The
+- **An archive is not one grid (measured).** The first GOES-18 FDCC files sit at 89.5° W and later files at 137.0° W, with different `x` and `y` axes. The
   pipeline compares a signature of each scan against the cube and stops on a
   mismatch.
 - **Bad headers become bad coordinates (measured).** A file can carry a fill
@@ -534,9 +531,9 @@ Later, not in this version:
   reader worked with `engine="kerchunk"` and
   `storage_options={"remote_protocol": "https"}`, and failed with the `zarr`
   engine and `reference://`.
-- **Stage 1b, two-week demo (2026-10-21).** 2025-01-07 to 2025-01-20, which
-  covers the January 2025 Los Angeles fires. Added the signature check, the `t`
-  rule, one commit per UTC day, manifest splitting, the example notebook, and
+- **Stage 1b, two-week demo (2026-10-21).** This stage built 2025-01-07 to
+  2025-01-20, a window with the January 2025 Los Angeles fires, and added the
+  signature check, the `t` rule, one commit per UTC day, manifest splitting, the example notebook, and
   the draft update workflow.
 - **Stage 2, next.** Extend to two years, publish to Source Cooperative, run the
   update workflow once, and report findings on #132.

@@ -1,4 +1,4 @@
-# AGENTS.md — GOES-18 ABI Fire/Hot Spot Characterization
+# AGENTS.md — GOES-18 ABI fire/hot spot characterization
 
 The collection guide with the file layout, the read recipe and the traps is
 [abi-l2-fdcc/AGENTS.md](abi-l2-fdcc/AGENTS.md). Humans want
@@ -20,8 +20,7 @@ One collection. The catalog is not published yet. Public root, provisional:
 |---|---|
 | [`abi-l2-fdcc`](abi-l2-fdcc/collection.json) | A virtual Zarr cube over 3,996 GOES-18 CONUS FDC scans, 2025-01-07 to 2025-01-20 UTC, in one Icechunk repository |
 
-This is a **mirror**. NOAA and NESDIS produce the data and are the
-authoritative source. The pixel bytes stay in NOAA's `noaa-goes18` bucket.
+NOAA and NESDIS produce the data and are the authoritative source. This catalog is a **mirror**, and the pixel bytes are in NOAA's `noaa-goes18` bucket.
 
 ## Start here
 
@@ -30,7 +29,7 @@ live in the collection guide:
 [`abi-l2-fdcc/AGENTS.md`](abi-l2-fdcc/AGENTS.md). Read it
 before you open the cube.
 
-The three traps that most often produce a confident wrong answer:
+These traps most often produce a confident wrong answer:
 
 - `x` and `y` are ABI scan angles in radians, not longitude and latitude.
 - `Power` uses the fill value `-9`. A sum without `where(Power > 0)` includes it.
@@ -39,7 +38,7 @@ The three traps that most often produce a confident wrong answer:
 
 ## Join keys
 
-The catalog holds one collection, so nothing joins across collections. A scan
+The catalog has one collection, so nothing joins across collections. A scan
 is identified by its `time` value, and a pixel by (`time`, `y`, `x`).
 
 ## Structure

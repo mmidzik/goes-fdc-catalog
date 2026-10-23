@@ -19,10 +19,7 @@ only byte-range references to it.
   produce the data and remain the authoritative source)
 - **Methods and design**: [docs/architecture.md](docs/architecture.md)
 
-Start with the catalog's own documentation. What the data is and how to read it
-is in [catalog/README.md](catalog/README.md). How the cube is built, and what
-this demo found about Zarr in Portolan, is in
-[docs/architecture.md](docs/architecture.md). Everything below is about how this
+Start with the catalog's own documentation. [catalog/README.md](catalog/README.md) describes the data and how to read it. [docs/architecture.md](docs/architecture.md) explains how the build makes the cube, and what this demo found about Zarr in Portolan. Everything below is about how this
 repository builds and publishes the catalog.
 
 To see it work, run
@@ -69,7 +66,7 @@ files it references, and NOAA changed these over the life of GOES-18. The build
 checks a signature of every scan and stops on a mismatch. This could be adjusted
 in future iterations.
 
-**One flat GOES-18 catalog.** The root catalog holds the collection directly,
+**One flat GOES-18 catalog.** The collection is a direct child of the root catalog,
 with no sub-catalog per satellite. Collection ids follow
 `abi-<level>-<product><sector>`, so other GOES-18 sectors can be added as
 siblings.

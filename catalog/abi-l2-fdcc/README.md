@@ -1,4 +1,4 @@
-# GOES-18 ABI L2 Fire/Hot Spot Characterization, CONUS (virtual Zarr)
+# Fire/hot spot characterization from GOES-18 (virtual Zarr)
 
 A virtual Zarr cube over 3,996 GOES-18 CONUS Fire/Hot Spot Characterization
 scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z. It holds byte-range references

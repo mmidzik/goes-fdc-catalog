@@ -1,4 +1,4 @@
-# GOES-18 ABI Fire/Hot Spot Characterization
+# Fire/hot spot characterization from GOES-18
 
 Fire detections from the Advanced Baseline Imager (ABI) on NOAA's GOES-18
 satellite, as a virtual Zarr cube. Every pixel of every scan is in the cube:
@@ -7,17 +7,17 @@ The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
 
 > **Demo.** The catalog covers two weeks, 2025-01-07 to 2025-01-20 UTC, which
-> include the January 2025 Los Angeles fires. The same pipeline extends the cube
-> in time.
+> include the January 2025 Los Angeles fires, and the same pipeline extends the
+> cube in time.
 
-This is a **mirror**. NOAA and NESDIS produce the data and remain the
-authoritative source.
+NOAA and NESDIS produce the data and remain the authoritative source. This
+catalog is a **mirror** of it.
 
 - **Get the files**: TODO, not on Source Cooperative yet
 - **Browse the metadata**: TODO, needs the published STAC root
 - **Read the build**:
   [the repository on GitHub](https://github.com/mmidzik/goes-fdc-catalog)
-- **The collection**: [abi-l2-fdcc](abi-l2-fdcc/README.md) ·
+- **The collection**: the [abi-l2-fdcc README](abi-l2-fdcc/README.md) and its
   [agent guide](abi-l2-fdcc/AGENTS.md)
 
 ## What is here
@@ -37,8 +37,7 @@ product (FDC) for the GOES-18 CONUS sector.
 | Variables  | `Mask`, `DQF`, `Power`, `Temp`, `Area`                                |
 
 The FDC algorithm uses the ABI 3.89 µm and 11.19 µm bands of each scan, with
-other bands for its cloud tests. For each pixel it decides whether a fire is
-present, and for some fire pixels it estimates the fire's radiative power,
+other bands for its cloud tests. For each pixel it assigns a fire mask code, and for some fire pixels it estimates the fire's radiative power,
 temperature and area. NOAA writes one netCDF file per scan. The cube stacks
 those files along `time` and reads them in place.
 
@@ -128,12 +127,12 @@ Every scan comes from the `ABI-L2-FDCC` prefix of the `noaa-goes18` bucket,
 listed in the
 [AWS Registry of Open Data](https://registry.opendata.aws/noaa-goes/). Nothing
 is resampled, reprojected, filtered or reclassified. The cube keeps NOAA's grid,
-chunks, compression, codes, scaling and fill values. The cube carries the five
-pixel variables and drops the per-scan summary values that the files also hold.
+chunks, compression, codes, scaling and fill values. The cube includes the five pixel variables and leaves out the per-scan summary
+values in the files.
 
 The methods are in the repository
 [design document](https://github.com/mmidzik/goes-fdc-catalog/blob/main/docs/architecture.md).
-No sync runs yet.
+The update workflow has not run yet.
 
 ## Access
 

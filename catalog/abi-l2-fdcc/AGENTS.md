@@ -21,7 +21,7 @@ The orbital slot recorded in the NOAA files read for this catalog (2025-01-07
 and 2025-01-08) is `GOES-West`. A satellite's slot can change over its life, so
 check the `orbital_slot` attribute in the file for the date you need.
 
-## Where the data comes from
+## Source bucket
 
 Measured on 2026-10-06 against `https://noaa-goes18.s3.amazonaws.com`:
 
@@ -37,13 +37,13 @@ Measured on 2026-10-06 against `https://noaa-goes18.s3.amazonaws.com`:
 
 | Variable | Shape | dtype | Chunks | Filter | Attributes |
 |---|---|---|---|---|---|
-| `Mask` | 1500 × 2500 | int16 | 250 × 250 | gzip + shuffle | `_FillValue` -99 |
+| `Mask` | 1500 × 2500 | int16 | 250 × 250 | gzip + shuffle | `_FillValue` `-99` |
 | `DQF` | 1500 × 2500 | uint8 | 250 × 250 | gzip + shuffle | `_FillValue` 255 |
-| `Power` | 1500 × 2500 | float32 | 250 × 250 | gzip + shuffle | units MW, `_FillValue` -9 |
+| `Power` | 1500 × 2500 | float32 | 250 × 250 | gzip + shuffle | units MW, `_FillValue` `-9` |
 | `Temp` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units K, `scale_factor` 0.05493667, `add_offset` 400, `_FillValue` 65535 |
 | `Area` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units m2, `scale_factor` 60.98, `add_offset` 4000, `_FillValue` 65535 |
 
-Each file also holds a scalar `t` (seconds since 2000-01-01 12:00:00) and
+Each file also contains a scalar `t` (seconds since 2000-01-01 12:00:00) and
 `time_bounds`. The `Mask` and `DQF` codes are in the `flag_values` and
 `flag_meanings` attributes, and the catalog `../README.md` tabulates them. Fire
 pixels are `Mask` codes 10 to 15 and 30 to 35 (measured from `flag_meanings` on
@@ -84,7 +84,7 @@ store. The Source Cooperative URL is untested.
   time step for it. Do not assume a fixed 5-minute spacing along `time`. A line
   plot joins the two sides of a gap, which hides it.
 - **Scene extent.** The collection bbox is NOAA's `geospatial_lat_lon_extent`
-  for this scene and crosses the antimeridian (west 175.6, east -89.6).
+  for this scene and crosses the antimeridian (west 175.6, east `-89.6`).
 - **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
   reference was written. NOAA's bucket answers `412` for a file modified after
   that time (measured with a date before a file's `Last-Modified`). Icechunk

@@ -6,8 +6,8 @@ A Portolan catalog of NOAA's GOES-18 ABI Fire/Hot Spot Characterization as a vir
 
 | File | Holds |
 |---|---|
-| `README.md` | The repository: what it publishes, key decisions, the pipeline, how to work here. Keep it short. |
-| `docs/architecture.md` | Methods: source data, the build, the Zarr store, catalog metadata, measurements, Zarr findings. |
+| `README.md` | The repository overview, the main design choices, the pipeline, and how to work here. A short file. |
+| `docs/architecture.md` | Methods. It covers the source data, the build, the Zarr store, the catalog metadata, the measurements, and the Zarr findings. |
 | `catalog/README.md` | The data, for humans: variables, codes, coverage, license, provenance. Published. |
 | `catalog/AGENTS.md` | A short pointer for machine clients. Published. |
 | `catalog/abi-l2-fdcc/README.md` and `AGENTS.md` | The read recipe, measured file layout, and the traps. Published. |
