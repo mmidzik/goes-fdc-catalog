@@ -42,6 +42,9 @@ other bands for its cloud tests. For each pixel it assigns a fire mask code, and
 temperature and area. NOAA writes one netCDF file per scan. The cube stacks
 those files along `time` and reads them in place.
 
+The `gsd` of 2000 m in the collection is the pixel size at nadir. Pixels are
+larger toward the edges of the sector.
+
 The GOES-18 CONUS sector is sometimes called PACUS. The extent above is NOAA's
 `geospatial_lat_lon_extent` for the sector.
 
@@ -60,6 +63,12 @@ Measured from the file headers. Each variable is a `time` × `y` × `x` array.
 `Temp` and `Area` are stored as scaled integers. Most readers apply the scaling
 and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md)
 says how to get the raw integers.
+
+Each scan also has NOAA's own summary values, stored as variables along
+`time`: the number of fire pixels, outlier counts, and the minimum, maximum,
+mean and standard deviation of fire temperature, area and radiative power. The
+collection has no statistics of its own, because they would change with every
+scan the cube gains.
 
 ### Fire mask codes
 

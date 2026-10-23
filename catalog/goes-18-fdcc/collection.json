@@ -71,7 +71,7 @@
       2000
     ]
   },
-  "updated": "2026-10-21T20:34:14Z",
+  "updated": "2026-10-23T23:37:15Z",
   "cube:dimensions": {
     "time": {
       "type": "temporal",
@@ -84,21 +84,21 @@
       "type": "spatial",
       "axis": "y",
       "extent": [
-        0.0,
-        1499.0
+        1584175.8003109246,
+        4588197.756226748
       ],
-      "unit": "rad",
-      "reference_system": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]"
+      "step": -2004.017315487541,
+      "unit": "m"
     },
     "x": {
       "type": "spatial",
       "axis": "x",
       "extent": [
-        0.0,
-        2499.0
+        -2504019.637719609,
+        2504019.6336837565
       ],
-      "unit": "rad",
-      "reference_system": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]"
+      "step": 2004.017315487541,
+      "unit": "m"
     }
   },
   "cube:variables": {
@@ -172,7 +172,7 @@
   "assets": {
     "icechunk": {
       "href": "https://data.source.coop/<ACCOUNT>/goes-fdc/goes-18-fdcc/icechunk/",
-      "type": "application/vnd+zarr",
+      "type": "application/vnd.zarr; version=3",
       "title": "Virtual Zarr cube (Icechunk repository)",
       "description": "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. Open it with icechunk and xarray, and authorize the NOAA https prefix as a virtual chunk container. See README.md.",
       "roles": [
@@ -183,13 +183,59 @@
       "zarr:consolidated": false,
       "xarray:open_kwargs": {
         "engine": "zarr",
-        "consolidated": false
+        "consolidated": false,
+        "decode_coords": "all"
       },
+      "bands": [
+        {
+          "name": "Mask",
+          "description": "Fire mask: fire, non-fire and obstructed-view categories.",
+          "unit": "1",
+          "data_type": "int16",
+          "nodata": -99
+        },
+        {
+          "name": "DQF",
+          "description": "Data quality flag.",
+          "unit": "1",
+          "data_type": "uint8",
+          "nodata": 255
+        },
+        {
+          "name": "Power",
+          "description": "Fire radiative power.",
+          "unit": "MW",
+          "data_type": "float32",
+          "nodata": -9
+        },
+        {
+          "name": "Temp",
+          "description": "Fire temperature (scaled integer; scale_factor and add_offset are on the array).",
+          "unit": "K",
+          "data_type": "uint16",
+          "nodata": 65535
+        },
+        {
+          "name": "Area",
+          "description": "Fire area (scaled integer; scale_factor and add_offset are on the array).",
+          "unit": "m2",
+          "data_type": "uint16",
+          "nodata": 65535
+        }
+      ],
       "proj:code": null,
       "proj:wkt2": "PROJCRS[\"undefined\",BASEGEOGCRS[\"undefined\",DATUM[\"undefined\",ELLIPSOID[\"undefined\",6378137,298.257222096042,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]],PRIMEM[\"Greenwich\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8901]]],CONVERSION[\"unknown\",METHOD[\"Geostationary Satellite (Sweep X)\"],PARAMETER[\"Satellite height\",35786023,LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],PARAMETER[\"Latitude of natural origin\",0,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8801]],PARAMETER[\"Longitude of natural origin\",-137,ANGLEUNIT[\"degree\",0.0174532925199433],ID[\"EPSG\",8802]],PARAMETER[\"False easting\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8806]],PARAMETER[\"False northing\",0,LENGTHUNIT[\"metre\",1],ID[\"EPSG\",8807]]],CS[Cartesian,2],AXIS[\"(E)\",east,ORDER[1],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]],AXIS[\"(N)\",north,ORDER[2],LENGTHUNIT[\"metre\",1,ID[\"EPSG\",9001]]]]",
       "proj:shape": [
         1500,
         2500
+      ],
+      "proj:transform": [
+        2004.017315487541,
+        0.0,
+        -2505021.6463773525,
+        0.0,
+        -2004.017315487541,
+        4589199.764884492
       ]
     },
     "thumbnail": {
@@ -239,6 +285,12 @@
       "href": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
       "type": "text/html",
       "title": "CC0 1.0 Universal Public Domain Dedication"
+    },
+    {
+      "rel": "store",
+      "href": "https://data.source.coop/<ACCOUNT>/goes-fdc/goes-18-fdcc/icechunk/",
+      "type": "application/vnd.zarr; version=3",
+      "title": "Icechunk repository with the Zarr store"
     }
   ]
 }

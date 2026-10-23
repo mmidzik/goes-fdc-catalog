@@ -16,7 +16,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
-import pyproj
 import xarray as xr
 
 from . import store, virtualize
@@ -32,6 +31,7 @@ EXTENSIONS = [
     "https://stac-extensions.github.io/file/v2.1.0/schema.json",
 ]
 SATELLITE = "G18"
+MEDIA_TYPE = "application/vnd.zarr; version=3"
 COLLECTION = "goes-18-fdcc"
 
 
@@ -39,23 +39,43 @@ def _iso(t) -> str:
     return np.datetime_as_string(np.datetime64(t, "s"), unit="s") + "Z"
 
 
+def _fill(value):
+    """A fill value as a JSON number: an int when it is integral."""
+    value = float(value)
+    return int(value) if value.is_integer() else value
+
+
+def centre_extent(origin: float, step: float, n: int) -> list[float]:
+    """The lowest and highest pixel-centre coordinates along one axis."""
+    ends = [origin + step / 2, origin + step * (n - 0.5)]
+    return [min(ends), max(ends)]
+
+
 def inspect_store(repo_path: Path) -> dict:
     """Facts the collection states, all read from the store itself."""
     repo = store.open_repo(repo_path, SATELLITE)
     ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False, mask_and_scale=False)
-    # Every scan in the cube shares one projection, recorded in the signature.
-    crs = pyproj.CRS.from_cf(store.stored_signature(ds)["projection"])
+    group = store.root_group(repo)
+    attrs = dict(group.attrs)
+    a, _, c, _, e, f = attrs["spatial:transform"]
+    height, width = attrs["spatial:shape"]
     return {
         "n_scans": int(ds.sizes["time"]),
         "start": _iso(ds.time.values.min()),
         "end": _iso(ds.time.values.max()),
-        "shape": [int(ds.sizes["y"]), int(ds.sizes["x"])],
-        "x": [float(ds.x.values.min()), float(ds.x.values.max())],
-        "y": [float(ds.y.values.min()), float(ds.y.values.max())],
+        "shape": [int(height), int(width)],
+        "transform": list(attrs["spatial:transform"]),
+        "x": {"extent": centre_extent(c, a, width), "step": a},
+        "y": {"extent": centre_extent(f, e, height), "step": e},
         "variables": {
-            v: {"unit": ds[v].attrs.get("units", ""), "dtype": str(ds[v].dtype)} for v in virtualize.VARIABLES
+            v: {
+                "unit": ds[v].attrs.get("units", ""),
+                "dtype": str(group[v].dtype),
+                "nodata": _fill(group[v].metadata.fill_value),
+            }
+            for v in virtualize.VARIABLES
         },
-        "wkt2": crs.to_wkt("WKT2_2019"),
+        "wkt2": attrs["proj:wkt2"],
     }
 
 
@@ -80,6 +100,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
         "proj:code": None,
         "proj:wkt2": info["wkt2"],
         "proj:shape": info["shape"],
+        "proj:transform": info["transform"],
     }
     return {
         "type": "Collection",
@@ -115,10 +136,10 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "cube:dimensions": {
             "time": {"type": "temporal", "extent": [info["start"], info["end"]]},
-            "y": {"type": "spatial", "axis": "y", "extent": info["y"], "unit": "rad",
-                  "reference_system": info["wkt2"]},
-            "x": {"type": "spatial", "axis": "x", "extent": info["x"], "unit": "rad",
-                  "reference_system": info["wkt2"]},
+            "y": {"type": "spatial", "axis": "y", "extent": info["y"]["extent"],
+                  "step": info["y"]["step"], "unit": "m"},
+            "x": {"type": "spatial", "axis": "x", "extent": info["x"]["extent"],
+                  "step": info["x"]["step"], "unit": "m"},
         },
         "cube:variables": {
             v: {"type": "data", "dimensions": ["time", "y", "x"], "unit": m["unit"],
@@ -137,7 +158,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
         "assets": {
             "icechunk": {
                 "href": f"{root}/icechunk/",
-                "type": "application/vnd+zarr",
+                "type": MEDIA_TYPE,
                 "title": "Virtual Zarr cube (Icechunk repository)",
                 "description": (
                     "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. "
@@ -148,7 +169,14 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 "zarr:zarr_format": 3,
                 "zarr:node_type": "group",
                 "zarr:consolidated": False,
-                "xarray:open_kwargs": {"engine": "zarr", "consolidated": False},
+                # decode_coords="all" makes goes_imager_projection a coordinate, so CF
+                # readers such as rioxarray find the CRS through grid_mapping.
+                "xarray:open_kwargs": {"engine": "zarr", "consolidated": False, "decode_coords": "all"},
+                "bands": [
+                    {"name": v, "description": DESCRIPTIONS[v], "unit": m["unit"],
+                     "data_type": m["dtype"], "nodata": m["nodata"]}
+                    for v, m in info["variables"].items()
+                ],
                 **cube_props,
             },
             "thumbnail": {
@@ -168,6 +196,8 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
              "title": "NOAA GOES on the AWS Registry of Open Data"},
             {"rel": "license", "href": "https://creativecommons.org/publicdomain/zero/1.0/legalcode", "type": "text/html",
              "title": "CC0 1.0 Universal Public Domain Dedication"},
+            {"rel": "store", "href": f"{root}/icechunk/", "type": MEDIA_TYPE,
+             "title": "Icechunk repository with the Zarr store"},
         ],
     }
 

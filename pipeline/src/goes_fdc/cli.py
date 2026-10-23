@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from . import keys, store, virtualize
 
@@ -14,6 +16,24 @@ DAY = timedelta(days=1)
 
 log = logging.getLogger(__name__)
 
+ROOT = Path(__file__).resolve().parents[3]
+COLLECTION = "goes-18-fdcc"
+
+
+def default_public_base() -> str | None:
+    """`public_base` from catalog.publish.yaml, or None outside the repository."""
+    if not (ROOT / "catalog.publish.yaml").exists():
+        return None
+    sys.path.insert(0, str(ROOT / "tools"))
+    from publish import load_config
+
+    return load_config(ROOT / "catalog.publish.yaml")["public_base"]
+
+
+def collection_url(public_base: str | None) -> str | None:
+    """The published collection.json, for the store's `stac:link` attribute."""
+    return f"{public_base.rstrip('/')}/{COLLECTION}/collection.json" if public_base else None
+
 
 def _utc(s: str) -> datetime:
     return datetime.fromisoformat(s).replace(tzinfo=timezone.utc)
@@ -21,6 +41,7 @@ def _utc(s: str) -> datetime:
 
 def build(args: argparse.Namespace) -> None:
     start, end = _utc(args.start), _utc(args.end)
+    link = collection_url(args.public_base)
     repo = store.open_repo(args.store, args.satellite)
     seen = store.last_time(repo)
     cutoff = None
@@ -41,7 +62,10 @@ def build(args: argparse.Namespace) -> None:
             log.info("%s: no new scans", f"{lo:%F}")
             continue
         log.info("%s: listed %d scans", f"{lo:%F}", len(scans))
-        cube = virtualize.build_cube(scans, workers=args.workers)
+        cube = virtualize.build_cube(scans, workers=args.workers, collection_url=link)
+        if cube is None:
+            log.info("%s: no usable scans", f"{lo:%F}")
+            continue
         log.info("%s: virtualized", f"{lo:%F}")
         snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}")
         log.info("%s: committed %s", f"{lo:%F}", snap)
@@ -59,6 +83,9 @@ def main() -> None:
     b.add_argument("--end", required=True, help="UTC, exclusive")
     b.add_argument("--store", default=str(store.DEFAULT_STORE), help="local path or s3://bucket/prefix of the Icechunk repo")
     b.add_argument("--workers", type=int, default=16)
+    b.add_argument("--public-base", default=default_public_base(),
+                   help="public base URL of the catalog, for the store's link to its collection "
+                        "(default: public_base in catalog.publish.yaml)")
     b.set_defaults(func=build)
     args = p.parse_args()
     # Each line carries its time, so the gap between two lines is the time a step took.

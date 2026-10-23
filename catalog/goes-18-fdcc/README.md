@@ -42,7 +42,7 @@ storage = icechunk.http_storage(
 )
 repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_access=credentials)
 session = repo.readonly_session(tag="demo-2025-01")   # or branch="main" for the latest
-ds = xr.open_zarr(session.store, consolidated=False)
+ds = xr.open_zarr(session.store, consolidated=False, decode_coords="all")
 
 power = ds.Power.isel(time=-1).values   # last scan, raw float32, fill value -9
 ```
