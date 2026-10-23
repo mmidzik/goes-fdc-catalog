@@ -51,7 +51,7 @@ these:
 
 ## Validator workarounds
 
-### stac-check reports a dialect crash on every collection
+### stac-check reports a dialect crash on a collection that declares the profile
 
 `tests/test_stac_valid.py` exempts one stac-check failure:
 
