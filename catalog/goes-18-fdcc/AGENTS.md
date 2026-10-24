@@ -31,8 +31,10 @@ satellite's slot can change over its life, so check it for the date you need.
 - NOAA's per-scan summary values are `time` arrays: counts, outlier counts and
   statistics. In `cube:variables`, they are the data variables whose only
   dimension is `time`.
-- The `auxiliary` variable in `cube:variables` holds NOAA's CF projection
-  attributes. Each pixel variable names it in `grid_mapping`.
+- `cube:variables` marks two scalars as `auxiliary`. Each pixel variable names
+  one of them in `grid_mapping`, and it holds NOAA's CF projection attributes.
+  The other holds NOAA's ACDD scene extent, the source of the collection
+  `bbox`.
 - The root attributes declare the `proj` v0.1, `spatial` v0.1, `stac` v0.1 and
   `license` v1 conventions in `zarr_conventions`. They hold `proj:wkt2`,
   `spatial:dimensions`, `spatial:shape` and `spatial:transform` in metres, a
@@ -105,7 +107,8 @@ Source Cooperative URL is untested.
 - **Gaps.** NOAA's bucket can have no file for a scan, and the cube then has no
   time step for it. Do not assume a fixed 5-minute spacing along `time`. A line
   plot joins the two sides of a gap, which hides it.
-- **Scene extent.** The collection bbox is NOAA's `geospatial_lat_lon_extent`
+- **Scene extent.** The collection bbox is the bounding box of NOAA's
+  scene-extent variable
   for this scene and crosses the antimeridian (west 175.6, east `-89.6`).
 - **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
   reference was written. NOAA's bucket answers `412` for a file modified after

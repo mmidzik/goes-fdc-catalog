@@ -10,8 +10,10 @@ INFO = {
     "transform": [2004.0, 0.0, -2504000.0, 0.0, -2004.0, 4588000.0],
     "x": {"extent": [-2503000.0, 2503000.0], "step": 2004.0},
     "y": {"extent": [1584000.0, 4587000.0], "step": -2004.0},
-    "variables": {v: {"unit": "1", "dtype": "int16", "nodata": -99}
+    "variables": {v: {"unit": "1", "dtype": "int16", "nodata": -99, "description": f"{v} description"}
                   for v in ["Mask", "DQF", "Power", "Temp", "Area"]},
+    "bbox": [175.6, 14.5, -89.6, 53.5],
+    "gsd": 2000.0,
     "wkt2": "WKT",
 }
 FILES = {"thumbnail": {"file:size": 2}}
@@ -85,4 +87,23 @@ def test_cube_variables_name_every_store_variable():
         "type": "data", "dimensions": ["time"], "unit": "MW", "description": "max FRP"}
     assert variables["goes_imager_projection"]["type"] == "auxiliary"
     assert "unit" not in variables["goes_imager_projection"]
+
+
+def test_descriptions_and_bbox_come_from_noaa_attributes():
+    from goes_fdc.collection import bbox_from, description
+
+    assert description({"long_name": "ABI L2+ Fire-Hot Spot Characterization: Fire Area"}) == "Fire Area"
+    assert description({"long_name": "total number of pixels with fires detected"}) == \
+        "Total number of pixels with fires detected"
+    assert bbox_from({"geospatial_westbound_longitude": 175.62358093, "geospatial_southbound_latitude": 14.57134,
+                      "geospatial_eastbound_longitude": -89.6235733, "geospatial_northbound_latitude": 53.50006}) == \
+        [175.62358, 14.57134, -89.62357, 53.50006]
+    assert bbox_from({"units": "1"}) is None
+
+
+def test_render_nodata_is_the_render_variable_fill_value():
+    info = {**INFO, "variables": {**INFO["variables"], "Power": {**INFO["variables"]["Power"], "nodata": -9}}}
+    c = collection_json(info, BASE, [0, 0, 1, 1], FILES)
+    assert c["renders"]["frp"]["nodata"] == -9
+    assert c["summaries"]["gsd"] == [2000.0]
 

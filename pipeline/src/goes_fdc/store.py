@@ -10,7 +10,7 @@ import zarr
 from zarr.errors import GroupNotFoundError
 
 from . import grid
-from .virtualize import VARIABLES, base_url, check_signature, dataset_signature, signature
+from .virtualize import base_url, check_signature, dataset_signature, is_pixel_array, signature
 
 # The store is built in place under data_dir (catalog.publish.yaml), at the
 # path its asset href names, so tools/upload_data.py uploads it unchanged.
@@ -98,7 +98,8 @@ def stored_signature(repo: icechunk.Repository) -> dict:
             f"the store has no proj and spatial conventions ({exc.args[0]}). "
             "Rebuild it from an empty store."
         ) from None
-    arrays = {v: (group[v].metadata, dict(group[v].attrs)) for v in VARIABLES if v in group}
+    arrays = {name: (arr.metadata, dict(arr.attrs)) for name, arr in group.arrays()
+              if is_pixel_array(arr.metadata.dimension_names or ())}
     return signature(dict(group.attrs), arrays)
 
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 
 import numpy as np
 import xarray as xr
@@ -16,26 +17,10 @@ from virtualizarr.registry import ObjectStoreRegistry
 from . import grid
 from .keys import BUCKETS, Scan
 
-VARIABLES = ["Mask", "DQF", "Power", "Temp", "Area"]
 KEEP_COORDS = {"time", "x", "y"}
-
-# NOAA's per-scan summary values. The cube keeps them as `time` variables, so
-# each scan's own counts and statistics stay with the scan.
-SCAN_SCALARS = [
-    "total_number_of_pixels_with_fires_detected",
-    "total_number_of_pixels_with_fire_temperature",
-    "total_number_of_pixels_with_fire_area",
-    "total_number_of_pixels_with_fire_radiative_power",
-    "fire_temperature_outlier_pixel_count",
-    "fire_area_outlier_pixel_count",
-    "fire_radiative_power_outlier_pixel_count",
-    *(f"{stat}_fire_{quantity}"
-      for quantity in ("temperature", "area", "radiative_power")
-      for stat in ("minimum", "maximum", "mean", "standard_deviation")),
-    "percent_uncorrectable_GRB_errors",
-    "percent_uncorrectable_L0_errors",
-]
-PROJECTION = "goes_imager_projection"
+PIXEL_DIMS = ("y", "x")
+# The ACDD attribute that marks NOAA's scene-extent variable.
+EXTENT_ATTR = "geospatial_westbound_longitude"
 
 # Each array's CF attributes come from the first scan of a cube. These ones hold
 # that scan's own summary values, so they are wrong for every other scan.
@@ -46,6 +31,42 @@ log = logging.getLogger(__name__)
 
 class EncodingMismatch(ValueError):
     """A scan's grid or encoding differs from the cube it would join."""
+
+
+@dataclass(frozen=True)
+class Layout:
+    """Which NOAA variables the cube keeps, read from a file's own metadata.
+
+    - pixel: the variables on the `y` × `x` grid
+    - scalars: per-scan summary values. CF marks each with `cell_methods`,
+      which states the statistic NOAA computed over the scan
+    - projection: the variable that the pixel variables name in `grid_mapping`
+    - extent: NOAA's scene-extent variable, with the ACDD bounding attributes
+    """
+
+    pixel: tuple[str, ...]
+    scalars: tuple[str, ...]
+    projection: str
+    extent: str | None
+
+    @property
+    def loadable(self) -> list[str]:
+        """The variables read as values. Everything else stays virtual."""
+        return ["t", "x", "y", self.projection, *self.scalars, *([self.extent] if self.extent else [])]
+
+
+def layout(ds: xr.Dataset) -> Layout:
+    """The layout of one file, from its dimensions and CF and ACDD attributes."""
+    pixel = tuple(sorted(n for n, v in ds.data_vars.items() if v.dims == PIXEL_DIMS))
+    if not pixel:
+        raise ValueError("the file has no variable on the y and x grid")
+    mappings = {ds[n].attrs.get("grid_mapping") for n in pixel}
+    if len(mappings) != 1 or None in mappings:
+        raise ValueError(f"the pixel variables do not share one grid_mapping: {sorted(map(str, mappings))}")
+    scalars = tuple(sorted(n for n, v in ds.variables.items() if v.ndim == 0 and "cell_methods" in v.attrs))
+    extents = [n for n, v in ds.variables.items() if v.ndim == 0 and EXTENT_ATTR in v.attrs]
+    return Layout(pixel=pixel, scalars=scalars, projection=mappings.pop(),
+                  extent=extents[0] if extents else None)
 
 
 def _plain(value):
@@ -87,9 +108,14 @@ def signature(root_attrs: dict, arrays: dict) -> dict:
     return json.loads(json.dumps(sig, sort_keys=True))
 
 
+def is_pixel_array(dims) -> bool:
+    """True for a cube array on the `time` × `y` × `x` grid."""
+    return tuple(dims) == ("time", *PIXEL_DIMS)
+
+
 def dataset_signature(ds: xr.Dataset) -> dict:
     """The signature of a virtual dataset, over the pixel variables it has."""
-    arrays = {v: (ds[v].data.metadata, ds[v].attrs) for v in VARIABLES if v in ds}
+    arrays = {v: (ds[v].data.metadata, ds[v].attrs) for v in ds.data_vars if is_pixel_array(ds[v].dims)}
     return signature(ds.attrs, arrays)
 
 
@@ -140,13 +166,13 @@ def is_aborted(scan: Scan) -> bool:
     return scan.start == scan.end
 
 
-def mask_is_empty(url: str, registry: ObjectStoreRegistry) -> bool:
-    """True when every `Mask` pixel of the file is the fill value. Reads the pixels."""
+def pixels_are_empty(url: str, registry: ObjectStoreRegistry, pixel: tuple[str, ...]) -> bool:
+    """True when every pixel of every pixel variable is the fill value. Reads the pixels."""
     ds = open_virtual_dataset(
-        url, registry=registry, parser=HDFParser(), loadable_variables=["Mask"],
+        url, registry=registry, parser=HDFParser(), loadable_variables=list(pixel),
         decode_times=False,
     )
-    return bool(ds["Mask"].isnull().all())
+    return all(bool(ds[v].isnull().all()) for v in pixel if v in ds)
 
 
 def _clean_attrs(var: xr.Variable) -> None:
@@ -156,40 +182,51 @@ def _clean_attrs(var: xr.Variable) -> None:
         del var.attrs[key]
 
 
-def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry,
+def url_of(scan: Scan) -> str:
+    return f"{base_url(scan.satellite)}/{scan.key}"
+
+
+def read_layout(scan: Scan, registry: ObjectStoreRegistry) -> Layout:
+    """The layout of one scan's file. Reads headers only."""
+    ds = open_virtual_dataset(
+        url_of(scan), registry=registry, parser=HDFParser(), loadable_variables=[],
+        decode_times=False,
+    )
+    return layout(ds)
+
+
+def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry, lay: Layout,
                     collection_url: str | None) -> xr.Dataset | None:
     """Read headers only. The result holds byte-range references, no pixels.
 
-    Returns None for an aborted scan whose `Mask` is all fill values.
+    Returns None for an aborted scan whose pixel variables are all fill values.
     """
-    url = f"{base_url(scan.satellite)}/{scan.key}"
-    if is_aborted(scan) and mask_is_empty(url, registry):
-        log.warning("%s: start and end stamps are equal and Mask is empty, skipping", scan.key)
+    url = url_of(scan)
+    if is_aborted(scan) and pixels_are_empty(url, registry, lay.pixel):
+        log.warning("%s: start and end stamps are equal and every pixel is empty, skipping", scan.key)
         return None
     # Decode `t` alone. Some files carry the fill value in `time_bounds`, which
     # stops CF time decoding of the whole file.
     ds = open_virtual_dataset(
-        url, registry=registry, parser=HDFParser(),
-        loadable_variables=["t", "x", "y", PROJECTION, *SCAN_SCALARS], decode_times=False,
+        url, registry=registry, parser=HDFParser(), loadable_variables=lay.loadable,
+        decode_times=False,
     )
     t = scan_time(scan, xr.decode_cf(ds[["t"]])["t"].values)
-    present = [v for v in VARIABLES if v in ds]
-    for v in sorted(set(VARIABLES) - set(present)):
+    present = [v for v in lay.pixel if v in ds]
+    for v in sorted(set(lay.pixel) - set(present)):
         log.warning("%s: no %s array, filling it with the fill value", scan.key, v)
-    scalars = []
-    for v in SCAN_SCALARS:
-        if v in ds:
-            scalars.append(v)
-        else:
+    for v in lay.scalars:
+        if v not in ds:
             log.warning("%s: no %s value, storing NaN", scan.key, v)
             ds[v] = xr.DataArray(np.float32("nan"))
-            scalars.append(v)
-    out = ds[present + scalars].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
-    out[PROJECTION] = ds[PROJECTION]
+    out = ds[present + list(lay.scalars)].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
+    for aux in (lay.projection, lay.extent):
+        if aux and aux in ds:
+            out[aux] = ds[aux]
     for name in out.variables:
         _clean_attrs(out[name].variable)
     out.attrs = grid.root_attributes(
-        ds[PROJECTION].attrs, ds["x"].values, ds["y"].values, collection_url,
+        ds[lay.projection].attrs, ds["x"].values, ds["y"].values, collection_url,
     )
     return out
 
@@ -203,12 +240,12 @@ def fill_array(template: xr.DataArray, time: xr.DataArray) -> xr.DataArray:
     return xr.DataArray(empty, dims=template.dims, attrs=dict(template.attrs)).assign_coords(time=time)
 
 
-def fill_missing(parts: list[xr.Dataset], scans: list[Scan]) -> list[xr.Dataset]:
+def fill_missing(parts: list[xr.Dataset], scans: list[Scan], pixel: tuple[str, ...]) -> list[xr.Dataset]:
     """Add a fill-value array for each pixel variable a scan does not have."""
-    templates = {v: next((p[v] for p in parts if v in p), None) for v in VARIABLES}
+    templates = {v: next((p[v] for p in parts if v in p), None) for v in pixel}
     out = []
     for scan, part in zip(scans, parts):
-        for v in VARIABLES:
+        for v in pixel:
             if v in part:
                 continue
             if templates[v] is None:
@@ -225,8 +262,11 @@ def build_cube(scans: list[Scan], workers: int = 16, collection_url: str | None 
     satellite = scans[0].satellite
     base = base_url(satellite)
     registry = ObjectStoreRegistry({base: HTTPStore.from_url(base)})
+    # One file gives the layout for the batch. A scan that lacks a variable of
+    # the layout gets a fill value for it.
+    lay = read_layout(scans[0], registry)
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = list(pool.map(lambda s: virtualize_scan(s, registry, collection_url), scans))
+        results = list(pool.map(lambda s: virtualize_scan(s, registry, lay, collection_url), scans))
     kept = [(s, p) for s, p in zip(scans, results) if p is not None]
     if not kept:
         return None
@@ -234,7 +274,8 @@ def build_cube(scans: list[Scan], workers: int = 16, collection_url: str | None 
     first = dataset_signature(parts[0])
     for scan, part in zip(scans, parts):
         check_signature(first, dataset_signature(part), scan.key)
-    parts = fill_missing(parts, scans)
+    pixel = tuple(sorted({v for p in parts for v in p.data_vars if is_pixel_array(p[v].dims)} | set(lay.pixel)))
+    parts = fill_missing(parts, scans, pixel)
     cube = xr.concat(
         parts, dim="time", data_vars="minimal", coords="minimal",
         compat="override", combine_attrs="override",

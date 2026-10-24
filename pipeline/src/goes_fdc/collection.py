@@ -32,6 +32,8 @@ EXTENSIONS = [
 ]
 SATELLITE = "G18"
 MEDIA_TYPE = "application/vnd.zarr; version=3"
+# The variable the render hint draws, with its display range. Both are choices.
+RENDER_VARIABLE = "Power"
 COLLECTION = "goes-18-fdcc"
 
 
@@ -51,12 +53,33 @@ def centre_extent(origin: float, step: float, n: int) -> list[float]:
     return [min(ends), max(ends)]
 
 
+def description(attrs: dict) -> str:
+    """A variable's description from its CF `long_name`.
+
+    NOAA prefixes most names with the product title and a colon, for example
+    "ABI L2+ Fire-Hot Spot Characterization: Fire Area". The part after the
+    last colon names the variable.
+    """
+    name = str(attrs.get("long_name", "")).rsplit(": ", 1)[-1].strip()
+    return name[:1].upper() + name[1:]
+
+
+def bbox_from(attrs: dict) -> list[float] | None:
+    """The ACDD bounding box of NOAA's scene-extent variable, as [W, S, E, N]."""
+    keys = ["geospatial_westbound_longitude", "geospatial_southbound_latitude",
+            "geospatial_eastbound_longitude", "geospatial_northbound_latitude"]
+    if not all(k in attrs for k in keys):
+        return None
+    return [round(float(np.ravel(attrs[k])[0]), 5) for k in keys]
+
+
 def inspect_store(repo_path: Path) -> dict:
     """Facts the collection states, all read from the store itself."""
     repo = store.open_repo(repo_path, SATELLITE)
     ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False, mask_and_scale=False)
     group = store.root_group(repo)
     attrs = dict(group.attrs)
+    pixel = sorted(v for v in ds.data_vars if virtualize.is_pixel_array(ds[v].dims))
     a, _, c, _, e, f = attrs["spatial:transform"]
     height, width = attrs["spatial:shape"]
     return {
@@ -72,31 +95,26 @@ def inspect_store(repo_path: Path) -> dict:
                 "unit": ds[v].attrs.get("units", ""),
                 "dtype": str(group[v].dtype),
                 "nodata": _fill(group[v].metadata.fill_value),
+                "description": description(ds[v].attrs),
             }
-            for v in virtualize.VARIABLES
+            for v in pixel
         },
-        # NOAA's per-scan values and the grid mapping variable. The collection
-        # names them, so the agent guides need not.
+        # NOAA's per-scan values and the auxiliary scalars. The collection names
+        # them, so the agent guides need not.
         "other_variables": {
             v: {
                 "dimensions": list(ds[v].dims),
                 "unit": ds[v].attrs.get("units", ""),
-                "description": ds[v].attrs.get("long_name", ""),
+                "description": description(ds[v].attrs),
             }
-            for v in [*virtualize.SCAN_SCALARS, virtualize.PROJECTION]
-            if v in ds
+            for v in ds.data_vars if v not in pixel
         },
+        "bbox": next((b for v in ds.data_vars if not ds[v].dims and (b := bbox_from(ds[v].attrs))), None),
+        # NOAA states the grid as 2 km at nadir. The transform step is the exact
+        # nadir spacing, about 2,004 m, so gsd is that step to the nearest 100 m.
+        "gsd": round(abs(a), -2),
         "wkt2": attrs["proj:wkt2"],
     }
-
-
-DESCRIPTIONS = {
-    "Mask": "Fire mask: fire, non-fire and obstructed-view categories.",
-    "DQF": "Data quality flag.",
-    "Power": "Fire radiative power.",
-    "Temp": "Fire temperature (scaled integer; scale_factor and add_offset are on the array).",
-    "Area": "Fire area (scaled integer; scale_factor and add_offset are on the array).",
-}
 
 
 def file_props(path: Path) -> dict:
@@ -143,7 +161,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             "spatial": {"bbox": [bbox]},
             "temporal": {"interval": [[info["start"], info["end"]]]},
         },
-        "summaries": {"platform": ["GOES-18"], "instruments": ["ABI"], "gsd": [2000]},
+        "summaries": {"platform": ["GOES-18"], "instruments": ["ABI"], "gsd": [info["gsd"]]},
         "updated": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "cube:dimensions": {
             "time": {"type": "temporal", "extent": [info["start"], info["end"]]},
@@ -155,12 +173,12 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
         "cube:variables": {
             **{
                 v: {"type": "data", "dimensions": ["time", "y", "x"], "unit": m["unit"],
-                    "description": DESCRIPTIONS[v]}
+                    "description": m["description"]}
                 for v, m in info["variables"].items()
             },
             **{
                 v: {
-                    "type": "auxiliary" if v == virtualize.PROJECTION else "data",
+                    "type": "data" if m["dimensions"] else "auxiliary",
                     "dimensions": m["dimensions"],
                     **({"unit": m["unit"]} if m["unit"] else {}),
                     **({"description": m["description"]} if m["description"] else {}),
@@ -174,7 +192,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 "assets": ["icechunk"],
                 "rescale": [[0, 200]],
                 "colormap_name": "inferno",
-                "nodata": -9,
+                "nodata": info["variables"][RENDER_VARIABLE]["nodata"],
             }
         },
         "assets": {
@@ -195,7 +213,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 # readers such as rioxarray find the CRS through grid_mapping.
                 "xarray:open_kwargs": {"engine": "zarr", "consolidated": False, "decode_coords": "all"},
                 "bands": [
-                    {"name": v, "description": DESCRIPTIONS[v], "unit": m["unit"],
+                    {"name": v, "description": m["description"], "unit": m["unit"],
                      "data_type": m["dtype"], "nodata": m["nodata"]}
                     for v, m in info["variables"].items()
                 ],
@@ -229,12 +247,14 @@ def main() -> None:
     p.add_argument("--store", default=str(store.DEFAULT_STORE), help="local path or s3://bucket/prefix of the Icechunk repo")
     p.add_argument("--public-base", required=True)
     p.add_argument("--catalog", type=Path, default=Path("catalog"))
-    p.add_argument("--bbox", type=float, nargs=4, default=None,
-                   metavar=("W", "S", "E", "N"), help="from the NOAA file's geospatial_lat_lon_extent")
+    p.add_argument("--bbox", type=float, nargs=4, default=None, metavar=("W", "S", "E", "N"),
+                   help="override the bbox the store gives from NOAA's scene-extent variable")
     args = p.parse_args()
 
     info = inspect_store(args.store)
-    bbox = args.bbox or [175.62358, 14.57134, -89.62357, 53.50006]
+    bbox = args.bbox or info["bbox"]
+    if bbox is None:
+        raise SystemExit("the store has no scene-extent variable. Pass --bbox W S E N.")
     out = args.catalog / COLLECTION
     out.mkdir(parents=True, exist_ok=True)
 

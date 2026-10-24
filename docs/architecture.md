@@ -25,8 +25,8 @@ follows. The catalog is a Zarr test case for
 [portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132),
 which defers a normative Zarr profile until real Zarr datasets have been tested
 in catalogs. Zarr stays outside Portolan's conformance surface.
-[Answers to portolan-spec#132](#answers-to-portolan-spec132) gives this
-catalog's evidence for each open question.
+[Zarr in Portolan](#zarr-in-portolan) discusses what a virtual store shows
+about that profile.
 
 ## Goals and non-goals
 
@@ -96,8 +96,23 @@ database. The build lists one hour prefix at a time and starts after the last
 **Virtualization.** VirtualiZarr reads the HDF5 metadata of each file with Range
 requests and records the byte range of each chunk. It reads no pixel chunks. The
 cube keeps NOAA's pixel variables, chunks and CF attributes as they are. It also
-keeps NOAA's projection variable and NOAA's per-scan summary values, which are
-header values, not pixels.
+keeps NOAA's projection variable, NOAA's scene-extent variable and NOAA's
+per-scan summary values, which are header values, not pixels.
+
+**Which variables.** The build reads the list of variables from the file's own
+metadata, not from a list in the code:
+
+- The pixel variables are the variables on the `y` × `x` grid.
+- The per-scan summary values are the scalars with a CF `cell_methods`
+  attribute, which states the statistic NOAA computed over the scan.
+- The projection variable is the one that the pixel variables name in
+  `grid_mapping`.
+- The scene-extent variable is the scalar with the ACDD
+  `geospatial_westbound_longitude` attribute.
+
+One file gives the list for each UTC day of scans. The collection metadata
+then takes variable names, descriptions, units, fill values and the bounding
+box from the store.
 
 **Time.** The build takes each scan's time from the file, and falls back to the
 file-name stamps when the file value is not usable.
@@ -112,8 +127,8 @@ different grid belong in a separate collection.
 **Incomplete files.** A file without one of the pixel variables gets an array
 with no chunk references for that scan, so a read returns the fill value. A file
 whose start and end stamps are equal is kept with the file-name midpoint as its
-time, unless its fire mask is all fill values. That check is the only pixel read
-in a build.
+time, unless every pixel variable is all fill values. That check is the only
+pixel read in a build.
 
 **Writing the store.** Each UTC day is one Icechunk commit, so a failed day
 commits nothing and the next run retries it. The repository authorizes NOAA's
@@ -134,8 +149,10 @@ root:
 - NOAA's per-scan values are `time` arrays: fire pixel counts, outlier counts,
   and the minimum, maximum, mean and standard deviation of fire temperature,
   area and radiative power.
-- `goes_imager_projection` holds NOAA's CF projection attributes. Each pixel
+- A scalar projection variable holds NOAA's CF projection attributes. Each pixel
   variable names it in `grid_mapping`.
+- A scalar scene-extent variable holds NOAA's ACDD bounding box, which the
+  collection uses as its `bbox`.
 - The root attributes declare the `proj`, `spatial`, `stac` and `license`
   conventions.
 
@@ -205,7 +222,7 @@ server that supports conditional reads, as S3 does.
 | STAC extensions | Follows | `zarr`, `xarray-assets`, `datacube`, `projection`, `render` and `file` |
 | STAC Zarr best practices | Follows | Media type `application/vnd.zarr; version=3`, a collection-level asset for the store group, variables in `bands`, and a `rel: store` link |
 | Portolan core | Follows | The catalog and collection pass rashid with no errors |
-| Proposed Portolan Zarr profile | Follows where a virtual store can | See [Answers to portolan-spec#132](#answers-to-portolan-spec132) |
+| Proposed Portolan Zarr profile | Follows where a virtual store can | See [Zarr in Portolan](#zarr-in-portolan) |
 
 The pipeline writes the convention attributes with
 [`zarr-cm`](https://github.com/zarr-conventions/zarr-cm), the Zarr conventions
@@ -213,13 +230,14 @@ project's Python library. The GeoZarr v0.4 draft, which was CF-based, is
 superseded by the conventions above. Its `GeoTransform` and `crs_wkt` attributes
 are not written.
 
-## Answers to portolan-spec#132
+## Zarr in Portolan
 
-[portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)
-lists four open questions and some scope items. The draft profile in
-portolan-spec#128 excludes virtual and transactional stores from its first
-version. This catalog is one of those stores, so it tests where the draft fits
-them.
+Portolan defers a normative Zarr profile until real Zarr datasets have been
+tested in catalogs
+([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
+The draft profile in portolan-spec#128 leaves virtual and transactional stores
+out of its first version. A virtual, appendable store meets most of the draft,
+and the parts it cannot meet show where a profile must allow for such stores.
 
 **Multiscale depth.** A virtual store has a depth of one. A coarser level needs
 computed pixels, and those pixels are copied data. A minimum depth would
@@ -261,7 +279,7 @@ NOAA's S3 bucket, which allows anonymous GET and CORS from any origin.
 **Collection or item.** One store spans all scans, so the store is a
 collection-level asset and the collection has no items.
 
-## Gaps in the metadata
+### Gaps in the metadata
 
 No STAC or Zarr field states these facts, and a reader needs each one:
 
@@ -276,7 +294,7 @@ No STAC or Zarr field states these facts, and a reader needs each one:
   for its whole record. No field states the era of a cube or links the cube for
   another era.
 
-## Lessons from building a virtual store
+### Lessons from building a virtual store
 
 - **Split manifests from the start.** Without splitting, each append rewrites
   every manifest, and the repository grows with the square of the number of
