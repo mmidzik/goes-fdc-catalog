@@ -94,6 +94,15 @@ uv run python tools/publish.py         # dry run: catalog metadata
 uv run python tools/upload_data.py     # dry run: the Icechunk repo
 ```
 
+The STAC gate uses stac-check, which does not validate the extension schemas of
+the collection (see [docs/conformance.md](docs/conformance.md)). Before a
+release, also run stac-node-validator, the release that the Portolan registry
+runs. It needs Node.js 22.12 or later, and it does not run in CI:
+
+```bash
+npx --yes stac-node-validator@2.0.0 catalog/
+```
+
 Data files never enter git. `.gitignore` blocks the common formats, plus
 `local/` for pipeline output and staged data.
 

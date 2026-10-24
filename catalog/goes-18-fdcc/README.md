@@ -1,13 +1,13 @@
 # Fire/hot spot characterization from GOES-18 (virtual Zarr)
 
-A virtual Zarr cube over 3,996 GOES-18 CONUS Fire/Hot Spot Characterization
-scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z. It holds byte-range references
+A virtual Zarr cube of GOES-18 CONUS Fire/Hot Spot Characterization scans, with
+its time extent in the collection's `extent`. The cube holds byte-range references
 into NOAA's `ABI-L2-FDCC` netCDF files in the public `noaa-goes18` bucket and
 copies no pixel data. The variables, the fire mask and quality codes, and the
 grid are described in the [catalog README](../README.md).
 
-One asset, `icechunk`, holds the cube as an Icechunk repository. The Icechunk
-tag `demo-2025-01` pins this snapshot. Reading it needs `icechunk`, `zarr` and
+One asset, `icechunk`, holds the cube as an Icechunk repository. The branch
+`main` has the latest scans, and a tag pins a snapshot. Reading it needs `icechunk`, `zarr` and
 `xarray`. The Zarr asset is outside the Portolan conformance surface
 ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
 
@@ -41,16 +41,16 @@ storage = icechunk.http_storage(
     "https://data.source.coop/<ACCOUNT>/goes-fdc/goes-18-fdcc/icechunk"
 )
 repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_access=credentials)
-session = repo.readonly_session(tag="demo-2025-01")   # or branch="main" for the latest
-ds = xr.open_zarr(session.store, consolidated=False)
+session = repo.readonly_session(branch="main")   # or tag="..." to pin a snapshot
+ds = xr.open_zarr(session.store, consolidated=False, decode_coords="all")
 
 power = ds.Power.isel(time=-1).values   # last scan, raw float32, fill value -9
 ```
 
-The recipe was tested on 2026-10-21 with `icechunk.http_storage` against the
-local store served over HTTP, in a clean environment with only `icechunk`,
-`zarr` and `xarray`, and with NOAA read live. It opened the tag `demo-2025-01`
-and returned the same values as a local read. Without the virtual chunk
+The recipe is tested with `icechunk.http_storage` against a store served over
+HTTP, in a clean environment with only `icechunk`, `zarr` and `xarray`, and with
+NOAA read live. It returns the same values as a read from the local file
+system. Without the virtual chunk
 container, the read fails with "you need to authorize the virtual chunk
 container". The Source Cooperative URL above is provisional and untested until
 the collection is uploaded. For a worked example that starts from the catalog,

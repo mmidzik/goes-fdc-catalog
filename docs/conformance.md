@@ -86,3 +86,22 @@ install command. `pyproject.toml` sets no version range for stac-check. The
 rashid floor exists because that gate asserts named rules. This gate asserts no
 stac-check rule. It needs the opposite property. A range holds the exemption
 open after the upstream fix ships.
+
+### Extension schemas need a second validator
+
+Because of the crash above, stac-check does not validate the extension schemas
+of a collection that declares the profile. For this catalog, those are the
+`zarr`, `xarray-assets`, `datacube`, `projection`, `render` and `file` fields.
+
+[stac-node-validator](https://github.com/stac-utils/stac-node-validator)
+validates them. The Portolan registry runs release 2.0.0 on every submission.
+Run the same release locally before a release:
+
+```bash
+npx --yes stac-node-validator@2.0.0 catalog/
+```
+
+It exits 0 when every object is valid and 1 when any object is invalid. It
+needs Node.js 22.12 or later. CI does not run it, so a change to the collection
+can merge without it.
+
