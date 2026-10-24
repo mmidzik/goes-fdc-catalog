@@ -13,7 +13,8 @@ INFO = {
     "variables": {v: {"unit": "1", "dtype": "int16", "nodata": -99, "description": f"{v} description"}
                   for v in ["Mask", "DQF", "Power", "Temp", "Area"]},
     "bbox": [175.6, 14.5, -89.6, 53.5],
-    "gsd": 2000.0,
+    "other_variables": {},
+    "gsd": 2000,
     "wkt2": "WKT",
 }
 FILES = {"thumbnail": {"file:size": 2}}
@@ -105,5 +106,5 @@ def test_render_nodata_is_the_render_variable_fill_value():
     info = {**INFO, "variables": {**INFO["variables"], "Power": {**INFO["variables"]["Power"], "nodata": -9}}}
     c = collection_json(info, BASE, [0, 0, 1, 1], FILES)
     assert c["renders"]["frp"]["nodata"] == -9
-    assert c["summaries"]["gsd"] == [2000.0]
+    assert c["summaries"]["gsd"] == [2000]
 

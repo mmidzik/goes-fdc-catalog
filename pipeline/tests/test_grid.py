@@ -77,6 +77,16 @@ def test_root_attributes_without_a_collection_url_have_no_stac_link():
     assert {c["name"] for c in attrs["zarr_conventions"]} == {"proj", "spatial", "license"}
 
 
+def test_a_collection_link_added_later_matches_one_built_in():
+    url = "https://data.example.org/goes-fdc/goes-18-fdcc/collection.json"
+    later = grid.add_collection_link(grid.root_attributes(PROJECTION, X, Y), url)
+    built_in = grid.root_attributes(PROJECTION, X, Y, url)
+    by_name = lambda attrs: sorted(attrs["zarr_conventions"], key=lambda c: c["name"])  # noqa: E731
+    assert by_name(later) == by_name(built_in)
+    assert {k: v for k, v in later.items() if k != "zarr_conventions"} == \
+        {k: v for k, v in built_in.items() if k != "zarr_conventions"}
+
+
 def test_grid_facts_need_the_conventions():
     attrs = grid.root_attributes(PROJECTION, X, Y, None)
     assert set(grid.grid_facts(attrs)) == set(grid.GRID_KEYS)

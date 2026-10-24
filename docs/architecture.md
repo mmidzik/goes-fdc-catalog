@@ -110,7 +110,8 @@ metadata, not from a list in the code:
 - The scene-extent variable is the scalar with the ACDD
   `geospatial_westbound_longitude` attribute.
 
-One file gives the list for each UTC day of scans. The collection metadata
+One file gives the list for each UTC day of scans. That file is the first scan
+of the day with different start and end stamps. The collection metadata
 then takes variable names, descriptions, units, fill values and the bounding
 box from the store.
 
@@ -122,10 +123,14 @@ files it references, and NOAA changes these over a satellite's life. The build
 compares each scan with the store on standard metadata only. It compares the
 `proj` and `spatial` root attributes. It also compares each array's chunks,
 data type, fill value, codecs and CF scaling, and it stops on any difference. Scans with a
-different grid belong in a separate collection.
+different grid belong in a separate collection. An append also stops when the
+day adds or drops a variable along `time`, because that array would get a
+different length from `time`.
 
 **Incomplete files.** A file without one of the pixel variables gets an array
 with no chunk references for that scan, so a read returns the fill value. A file
+without one of the per-scan values gets NaN, in the encoding of the other scans.
+On write, NaN becomes the variable's `_FillValue`. A file
 whose start and end stamps are equal is kept with the file-name midpoint as its
 time, unless every pixel variable is all fill values. That check is the only
 pixel read in a build.

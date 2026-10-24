@@ -50,9 +50,10 @@ def test_a_variable_on_one_side_only_is_not_a_mismatch():
     check_signature(SIG, {"grid": GRID}, "scan")
 
 
-def test_a_signature_without_a_grid_is_refused():
-    with pytest.raises(EncodingMismatch, match="grid"):
-        check_signature(SIG, {"Mask": MASK}, "scan")
+def test_an_append_that_adds_or_drops_a_variable_is_refused():
+    virtualize.check_variables({"Mask", "Power"}, {"Mask", "Power"}, "day")
+    with pytest.raises(EncodingMismatch, match="Added: Area. Missing: Power"):
+        virtualize.check_variables({"Mask", "Power"}, {"Mask", "Area"}, "day")
 
 
 def test_plain_makes_numpy_json_safe():
@@ -77,7 +78,7 @@ def test_an_aborted_scan_with_an_empty_mask_is_skipped(monkeypatch):
     assert virtualize.is_aborted(aborted)
     monkeypatch.setattr(virtualize, "pixels_are_empty", lambda url, registry, pixel: True)
     lay = virtualize.Layout(pixel=("Mask",), scalars=(), projection="proj", extent=None)
-    assert virtualize.virtualize_scan(aborted, registry=None, lay=lay, collection_url=None) is None
+    assert virtualize.virtualize_scan(aborted, registry=None, lay=lay) is None
 
 
 def _virtual(name, t):
@@ -96,7 +97,8 @@ def test_a_missing_variable_is_filled_with_fill_values():
     s = scan(datetime(2025, 1, 8, 7, 1, tzinfo=UTC), datetime(2025, 1, 8, 7, 3, tzinfo=UTC))
     with_mask = _virtual("Mask", t0)
     without = xr.Dataset(coords={"time": [t1]})
-    filled = virtualize.fill_missing([with_mask, without], [s, s], ("Mask",))
+    lay = virtualize.Layout(pixel=("Mask",), scalars=(), projection="proj", extent=None)
+    filled = virtualize.fill_missing([with_mask, without], [s, s], lay)
     added = filled[1]["Mask"]
     assert added.shape == (1, 500, 500)
     assert added.attrs == {"units": "1"}
@@ -111,8 +113,28 @@ def test_a_missing_variable_is_filled_with_fill_values():
 def test_a_variable_no_scan_has_cannot_be_filled():
     s = scan(datetime(2025, 1, 8, 7, 1, tzinfo=UTC), datetime(2025, 1, 8, 7, 3, tzinfo=UTC))
     empty = xr.Dataset(coords={"time": [np.datetime64("2025-01-08T07:02", "ns")]})
+    lay = virtualize.Layout(pixel=("Mask",), scalars=(), projection="proj", extent=None)
     with pytest.raises(ValueError, match="Mask"):
-        virtualize.fill_missing([empty], [s], ("Mask",))
+        virtualize.fill_missing([empty], [s], lay)
+
+
+def test_a_missing_scalar_is_filled_in_the_encoding_of_the_others():
+    # NOAA's pixel counts are int32 with _FillValue -1. Read, they decode to float64.
+    t0, t1 = np.datetime64("2025-01-08T07:02", "ns"), np.datetime64("2025-01-08T07:07", "ns")
+    s = scan(datetime(2025, 1, 8, 7, 1, tzinfo=UTC), datetime(2025, 1, 8, 7, 3, tzinfo=UTC))
+    name = "total_number_of_pixels_with_fires_detected"
+    count = xr.DataArray(np.array([28.0]), dims=["time"], coords={"time": [t0]}, attrs={"units": "count"})
+    count.encoding = {"dtype": np.dtype("int32"), "_FillValue": -1}
+    lay = virtualize.Layout(pixel=(), scalars=(name,), projection="proj", extent=None)
+    filled = virtualize.fill_missing(
+        [xr.Dataset({name: count}), xr.Dataset(coords={"time": [t1]})], [s, s], lay,
+    )
+    added = filled[1][name]
+    assert np.isnan(added.values[0])
+    assert added.dtype == np.float64
+    assert added.encoding == {"dtype": np.dtype("int32"), "_FillValue": -1}
+    assert added.attrs == {"units": "count"}
+    assert filled[1]["time"].values[0] == t1
 
 
 def test_layout_comes_from_the_file_metadata():

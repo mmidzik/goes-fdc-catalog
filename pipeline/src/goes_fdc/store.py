@@ -10,7 +10,9 @@ import zarr
 from zarr.errors import GroupNotFoundError
 
 from . import grid
-from .virtualize import base_url, check_signature, dataset_signature, is_pixel_array, signature
+from .virtualize import (
+    base_url, check_signature, check_variables, dataset_signature, is_pixel_array, signature, time_variables,
+)
 
 # The store is built in place under data_dir (catalog.publish.yaml), at the
 # path its asset href names, so tools/upload_data.py uploads it unchanged.
@@ -91,31 +93,39 @@ def root_group(repo: icechunk.Repository) -> zarr.Group:
 def stored_signature(repo: icechunk.Repository) -> dict:
     """The grid and encoding signature of the stored cube, from its standard metadata."""
     group = root_group(repo)
+    arrays = {name: (arr.metadata, dict(arr.attrs)) for name, arr in group.arrays()
+              if is_pixel_array(arr.metadata.dimension_names or ())}
     try:
-        grid.grid_facts(dict(group.attrs))
+        return signature(dict(group.attrs), arrays)
     except KeyError as exc:
         raise ValueError(
             f"the store has no proj and spatial conventions ({exc.args[0]}). "
             "Rebuild it from an empty store."
         ) from None
-    arrays = {name: (arr.metadata, dict(arr.attrs)) for name, arr in group.arrays()
-              if is_pixel_array(arr.metadata.dimension_names or ())}
-    return signature(dict(group.attrs), arrays)
 
 
-def append(repo: icechunk.Repository, cube: xr.Dataset, message: str) -> str:
-    """Commit the cube, or append it along time. Refuse a cube whose signature differs."""
+def append(repo: icechunk.Repository, cube: xr.Dataset, message: str,
+           collection_url: str | None = None) -> str:
+    """Commit the cube, or append it along time. Refuse a cube whose signature differs.
+
+    The store links to `collection_url`. Without one, an append keeps the link
+    that the store already has.
+    """
     stored = open_cube(repo)
     session = repo.writable_session("main")
     if stored is None:
         cube.vz.to_icechunk(session.store)
     else:
         check_signature(stored_signature(repo), dataset_signature(cube), message)
-        timeless = [v for v in cube.data_vars if "time" not in cube[v].dims]
-        cube.drop_vars(timeless).vz.to_icechunk(session.store, append_dim="time")
+        check_variables(time_variables(stored), time_variables(cube), message)
+        cube[sorted(time_variables(cube))].vz.to_icechunk(session.store, append_dim="time")
+        collection_url = collection_url or stored.attrs.get("stac:link", {}).get("href")
     # The root attributes are the conventions only. Replace what the writer left.
+    attrs = dict(cube.attrs)
+    if collection_url:
+        attrs = grid.add_collection_link(attrs, collection_url)
     group = zarr.open_group(session.store, mode="r+")
     group.attrs.clear()
-    group.attrs.update(cube.attrs)
+    group.attrs.update(attrs)
     return session.commit(message)
 

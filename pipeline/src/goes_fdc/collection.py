@@ -112,7 +112,7 @@ def inspect_store(repo_path: Path) -> dict:
         "bbox": next((b for v in ds.data_vars if not ds[v].dims and (b := bbox_from(ds[v].attrs))), None),
         # NOAA states the grid as 2 km at nadir. The transform step is the exact
         # nadir spacing, about 2,004 m, so gsd is that step to the nearest 100 m.
-        "gsd": round(abs(a), -2),
+        "gsd": int(round(abs(a), -2)),
         "wkt2": attrs["proj:wkt2"],
     }
 
@@ -121,6 +121,27 @@ def file_props(path: Path) -> dict:
     """`file:` extension fields: multihash (sha2-256) and size in bytes."""
     data = path.read_bytes()
     return {"file:checksum": "1220" + hashlib.sha256(data).hexdigest(), "file:size": len(data)}
+
+
+def cube_variables(info: dict) -> dict:
+    """`cube:variables`: the pixel variables, then the per-scan and auxiliary ones."""
+    out = {
+        v: {"type": "data", "dimensions": ["time", "y", "x"], "unit": m["unit"], "description": m["description"]}
+        for v, m in info["variables"].items()
+    }
+    for v, m in info["other_variables"].items():
+        entry = {"type": "data" if m["dimensions"] else "auxiliary", "dimensions": m["dimensions"]}
+        if m["unit"]:
+            entry["unit"] = m["unit"]
+        if m["description"]:
+            entry["description"] = m["description"]
+        out[v] = entry
+    return out
+
+
+def collection_url(public_base: str) -> str:
+    """The published collection.json, for the store's `stac:link` attribute."""
+    return f"{public_base.rstrip('/')}/{COLLECTION}/collection.json"
 
 
 def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, dict]) -> dict:
@@ -170,22 +191,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             "x": {"type": "spatial", "axis": "x", "extent": info["x"]["extent"],
                   "step": info["x"]["step"], "unit": "m"},
         },
-        "cube:variables": {
-            **{
-                v: {"type": "data", "dimensions": ["time", "y", "x"], "unit": m["unit"],
-                    "description": m["description"]}
-                for v, m in info["variables"].items()
-            },
-            **{
-                v: {
-                    "type": "data" if m["dimensions"] else "auxiliary",
-                    "dimensions": m["dimensions"],
-                    **({"unit": m["unit"]} if m["unit"] else {}),
-                    **({"description": m["description"]} if m["description"] else {}),
-                }
-                for v, m in info.get("other_variables", {}).items()
-            },
-        },
+        "cube:variables": cube_variables(info),
         "renders": {
             "frp": {
                 "title": "Fire radiative power (MW)",

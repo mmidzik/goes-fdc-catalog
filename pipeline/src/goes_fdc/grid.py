@@ -38,8 +38,15 @@ def transform(projection_attrs: dict, x: np.ndarray, y: np.ndarray) -> list[floa
     return [float(dx), 0.0, float(xm[0] - dx / 2), 0.0, float(dy), float(ym[0] - dy / 2)]
 
 
+def add_collection_link(attrs: dict, collection_url: str) -> dict:
+    """The attributes with the `stac` convention link to the published collection."""
+    return zcm_stac.insert(attrs, zcm_stac.create(link={
+        "rel": "collection", "href": collection_url, "type": "application/json",
+    }))
+
+
 def root_attributes(projection_attrs: dict, x: np.ndarray, y: np.ndarray,
-                    collection_url: str | None) -> dict:
+                    collection_url: str | None = None) -> dict:
     """Store root attributes: the `proj`, `spatial`, `stac` and `license` conventions."""
     attrs: dict = {}
     attrs = zcm_proj.insert(attrs, zcm_proj.create(wkt2=crs(projection_attrs).to_wkt("WKT2_2019")))
@@ -49,9 +56,7 @@ def root_attributes(projection_attrs: dict, x: np.ndarray, y: np.ndarray,
         shape=[int(np.size(y)), int(np.size(x))],
     ))
     if collection_url:
-        attrs = zcm_stac.insert(attrs, zcm_stac.create(link={
-            "rel": "collection", "href": collection_url, "type": "application/json",
-        }))
+        attrs = add_collection_link(attrs, collection_url)
     attrs = zcm_license.insert(attrs, zcm_license.create(spdx=LICENSE_SPDX))
     return attrs
 

@@ -50,6 +50,11 @@ class Layout:
     extent: str | None
 
     @property
+    def kept(self) -> tuple[str, ...]:
+        """The variables along `time` in the cube."""
+        return (*self.pixel, *self.scalars)
+
+    @property
     def loadable(self) -> list[str]:
         """The variables read as values. Everything else stays virtual."""
         return ["t", "x", "y", self.projection, *self.scalars, *([self.extent] if self.extent else [])]
@@ -122,18 +127,35 @@ def dataset_signature(ds: xr.Dataset) -> dict:
 def check_signature(expected: dict, found: dict, where: str) -> None:
     """Raise EncodingMismatch naming each fact that differs.
 
-    A variable that only one side has is not a mismatch. The build fills a
-    missing variable with fill values instead.
+    A variable that only one side has is not a mismatch. Inside one batch, the
+    build fills a missing variable. check_variables refuses it on an append.
     """
-    keys = sorted(k for k in set(expected) & set(found))
-    diff = [k for k in keys if expected[k] != found[k]]
-    if "grid" not in found or "grid" not in expected:
-        diff.append("grid")
+    diff = sorted(k for k in set(expected) & set(found) if expected[k] != found[k])
     if diff:
         raise EncodingMismatch(
             f"{where}: grid or encoding differs from the cube in {', '.join(diff)}. "
             "These scans belong in a separate cube."
         )
+
+
+def time_variables(ds: xr.Dataset) -> set[str]:
+    """The data variables along `time`. An append extends each of them."""
+    return {v for v in ds.data_vars if "time" in ds[v].dims}
+
+
+def check_variables(expected: set[str], found: set[str], where: str) -> None:
+    """Raise EncodingMismatch when an append adds or drops a variable along `time`.
+
+    An append extends only the arrays the new scans have. A variable on one
+    side only gets a length that differs from `time`.
+    """
+    if expected == found:
+        return
+    added, dropped = sorted(found - expected), sorted(expected - found)
+    raise EncodingMismatch(
+        f"{where}: the variables differ from the cube. Added: {', '.join(added) or 'none'}. "
+        f"Missing: {', '.join(dropped) or 'none'}."
+    )
 
 
 def base_url(satellite: str) -> str:
@@ -195,8 +217,7 @@ def read_layout(scan: Scan, registry: ObjectStoreRegistry) -> Layout:
     return layout(ds)
 
 
-def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry, lay: Layout,
-                    collection_url: str | None) -> xr.Dataset | None:
+def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry, lay: Layout) -> xr.Dataset | None:
     """Read headers only. The result holds byte-range references, no pixels.
 
     Returns None for an aborted scan whose pixel variables are all fill values.
@@ -212,50 +233,54 @@ def virtualize_scan(scan: Scan, registry: ObjectStoreRegistry, lay: Layout,
         decode_times=False,
     )
     t = scan_time(scan, xr.decode_cf(ds[["t"]])["t"].values)
-    present = [v for v in lay.pixel if v in ds]
-    for v in sorted(set(lay.pixel) - set(present)):
-        log.warning("%s: no %s array, filling it with the fill value", scan.key, v)
-    for v in lay.scalars:
-        if v not in ds:
-            log.warning("%s: no %s value, storing NaN", scan.key, v)
-            ds[v] = xr.DataArray(np.float32("nan"))
-    out = ds[present + list(lay.scalars)].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
+    present = [v for v in lay.kept if v in ds]
+    for v in sorted(set(lay.kept) - set(present)):
+        log.warning("%s: no %s variable, filling it", scan.key, v)
+    out = ds[present].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
     for aux in (lay.projection, lay.extent):
         if aux and aux in ds:
             out[aux] = ds[aux]
     for name in out.variables:
         _clean_attrs(out[name].variable)
-    out.attrs = grid.root_attributes(
-        ds[lay.projection].attrs, ds["x"].values, ds["y"].values, collection_url,
-    )
+    out.attrs = grid.root_attributes(ds[lay.projection].attrs, ds["x"].values, ds["y"].values)
     return out
 
 
-def fill_array(template: xr.DataArray, time: xr.DataArray) -> xr.DataArray:
-    """A one-scan array with no chunk references, so every read returns the fill value."""
-    meta = template.data.metadata
-    empty = ManifestArray(
-        metadata=meta, chunkmanifest=ChunkManifest(entries={}, shape=template.data.manifest.shape_chunk_grid),
-    )
-    return xr.DataArray(empty, dims=template.dims, attrs=dict(template.attrs)).assign_coords(time=time)
+def fill_like(template: xr.DataArray, time: xr.DataArray) -> xr.DataArray:
+    """A one-scan stand-in for a missing variable, in the encoding of `template`.
+
+    A virtual array gets no chunk references, so every read returns the fill
+    value. A loaded scalar gets NaN, which its `_FillValue` encodes on write.
+    """
+    if isinstance(template.data, ManifestArray):
+        meta = template.data.metadata
+        empty = ManifestArray(
+            metadata=meta, chunkmanifest=ChunkManifest(entries={}, shape=template.data.manifest.shape_chunk_grid),
+        )
+        filled = xr.DataArray(empty, dims=template.dims, attrs=dict(template.attrs))
+    else:
+        filled = xr.DataArray(np.full(template.shape, np.nan, dtype=template.dtype),
+                              dims=template.dims, attrs=dict(template.attrs))
+    filled.encoding = dict(template.encoding)
+    return filled.assign_coords(time=time)
 
 
-def fill_missing(parts: list[xr.Dataset], scans: list[Scan], pixel: tuple[str, ...]) -> list[xr.Dataset]:
-    """Add a fill-value array for each pixel variable a scan does not have."""
-    templates = {v: next((p[v] for p in parts if v in p), None) for v in pixel}
+def fill_missing(parts: list[xr.Dataset], scans: list[Scan], lay: Layout) -> list[xr.Dataset]:
+    """Add a stand-in for each variable of the layout that a scan does not have."""
+    templates = {v: next((p[v] for p in parts if v in p), None) for v in lay.kept}
     out = []
     for scan, part in zip(scans, parts):
-        for v in pixel:
+        for v in lay.kept:
             if v in part:
                 continue
             if templates[v] is None:
                 raise ValueError(f"{scan.key}: no scan in this batch has {v}, so it cannot be filled")
-            part = part.assign({v: fill_array(templates[v], part["time"])})
+            part = part.assign({v: fill_like(templates[v], part["time"])})
         out.append(part)
     return out
 
 
-def build_cube(scans: list[Scan], workers: int = 16, collection_url: str | None = None) -> xr.Dataset | None:
+def build_cube(scans: list[Scan], workers: int = 16) -> xr.Dataset | None:
     """The virtual cube for a batch of scans, or None when no scan is usable."""
     if not scans:
         raise ValueError("no scans to virtualize")
@@ -263,19 +288,18 @@ def build_cube(scans: list[Scan], workers: int = 16, collection_url: str | None 
     base = base_url(satellite)
     registry = ObjectStoreRegistry({base: HTTPStore.from_url(base)})
     # One file gives the layout for the batch. A scan that lacks a variable of
-    # the layout gets a fill value for it.
-    lay = read_layout(scans[0], registry)
+    # the layout gets a stand-in for it. An aborted scan can be dropped, so the
+    # layout comes from the first complete scan when there is one.
+    lay = read_layout(next((s for s in scans if not is_aborted(s)), scans[0]), registry)
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        results = list(pool.map(lambda s: virtualize_scan(s, registry, lay, collection_url), scans))
-    kept = [(s, p) for s, p in zip(scans, results) if p is not None]
-    if not kept:
+        results = list(pool.map(lambda s: virtualize_scan(s, registry, lay), scans))
+    scans, parts = [s for s, p in zip(scans, results) if p is not None], [p for p in results if p is not None]
+    if not parts:
         return None
-    scans, parts = [s for s, _ in kept], [p for _, p in kept]
     first = dataset_signature(parts[0])
     for scan, part in zip(scans, parts):
         check_signature(first, dataset_signature(part), scan.key)
-    pixel = tuple(sorted({v for p in parts for v in p.data_vars if is_pixel_array(p[v].dims)} | set(lay.pixel)))
-    parts = fill_missing(parts, scans, pixel)
+    parts = fill_missing(parts, scans, lay)
     cube = xr.concat(
         parts, dim="time", data_vars="minimal", coords="minimal",
         compat="override", combine_attrs="override",
