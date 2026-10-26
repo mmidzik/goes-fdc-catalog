@@ -2,8 +2,9 @@
 
 Guidance for AI agents and automated clients working with this catalog.
 
-This file states no facts of its own. Each line points to the source that holds
-the fact. Read the source, not a copy of it.
+Each collection has its own guide with its access pattern, quirks and
+coordinate system. The catalog has one collection so far, so nothing joins
+across collections.
 
 ## Start here
 

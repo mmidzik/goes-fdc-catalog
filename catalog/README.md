@@ -59,8 +59,8 @@ Measured from the file headers. Each variable is a `time` × `y` × `x` array.
 | `Area`   | Fire Area            | uint16  | m2    | 65535      | `scale_factor` 60.98, `add_offset` 4000     |
 
 `Temp` and `Area` are stored as scaled integers. Most readers apply the scaling
-and the fill value on read. The [collection README](goes-18-fdcc/README.md#traps)
-says how to get the raw integers.
+and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md#quirks) says how to get
+the raw integers.
 
 Each scan also has NOAA's own summary values, stored as variables along
 `time`. They include the number of fire pixels and the outlier counts. They

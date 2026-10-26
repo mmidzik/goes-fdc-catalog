@@ -11,6 +11,9 @@ One asset, `icechunk`, holds the cube as an Icechunk repository. The branch
 `xarray`. The Zarr asset is outside the Portolan conformance surface
 ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
 
+Agents and scripts: read the [agent guide](AGENTS.md) for the quirks, the
+coordinate system and a read that takes every name from the metadata.
+
 ## License
 
 CC0-1.0, from NOAA. See the [catalog README](../README.md#license) for the
@@ -58,16 +61,7 @@ see `examples/palisades-frp.ipynb` in the
 [source repository](https://github.com/mmidzik/goes-fdc-catalog).
 
 Sampled scans read back byte-identical to NOAA's netCDF for every pixel
-variable (measured).
-
-- Every pixel read is a Range request to
-  `https://noaa-goes18.s3.amazonaws.com/ABI-L2-FDCC/...`. Opening the
-  repository without authorizing that prefix fails.
-- Open with `consolidated=False`. The `chunks={}` argument needs `dask`, which
-  is not a requirement for reading.
-- Open with `decode_coords="all"`, as the asset's `xarray:open_kwargs` says, to
-  make the `grid_mapping` variable a coordinate. rioxarray then finds the CRS.
-  Without it, `rio.crs` is `None` (measured).
+variable (measured). Every pixel read is a Range request to NOAA's bucket.
 
 ## Store layout
 
@@ -110,44 +104,3 @@ Measured against `https://noaa-goes18.s3.amazonaws.com`:
   any `scale_factor` and `add_offset`.
 - The `orbital_slot` attribute gives the satellite's slot. A satellite's slot
   can change over its life, so check it for the date you need.
-
-## Traps
-
-These produce a wrong answer with no error. The fire mask codes, the time of a
-scan and the gaps along `time` are in the [catalog README](../README.md).
-
-- **Scaled values decode to floats.** Open with `mask_and_scale=False` to get NOAA's stored
-  values. With the default, a variable with `scale_factor` and `add_offset`
-  decodes to float64, and fill values become NaN. A decoded value is never
-  below that variable's `add_offset`.
-- **Fill values inside the number range.** Some nodata values in `bands` are
-  negative numbers in a float or signed integer range. A sum that does not mask
-  them includes them. Exclude values at or below zero before a sum of fire
-  radiative power. Measured over the box 118.70 W to 118.45 W, 34.00 N to
-  34.15 N at 2025-01-08T07:12Z: the sum of positive fire radiative power is
-  26,255 MW.
-- **Not latitude and longitude, and not metres.** `x` and `y` are ABI scan
-  angles in radians on the geostationary fixed grid. The CRS in `proj:wkt2` is
-  in metres, which are the scan angle times the `perspective_point_height` of
-  the `grid_mapping` variable. rioxarray computes `rio.transform()` from `x` and
-  `y`, so it is in radians (measured). Use `spatial:transform` or the asset's
-  `proj:transform` for metres. With them and `proj:wkt2`, `pyproj` places the
-  corner and centre pixels within 0.001 m of NOAA's published fixed-grid
-  equations (measured).
-- **A fill value can mean a missing variable.** When a file has no array for a
-  pixel variable, the build adds an array with no chunk references for that
-  scan, so every read returns the fill value. When a file has no per-scan
-  value, the build stores the variable's fill value for that scan.
-- **Gaps along `time`.** A line plot joins the two sides of a gap, which hides
-  the gap.
-- **The bbox crosses the antimeridian.** The collection bbox is NOAA's scene
-  extent, from 175.6° E across the antimeridian to 89.6° W.
-- **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
-  reference was written. NOAA's bucket answers `412` for a file modified after
-  that time (measured with a date before a file's `Last-Modified`). Icechunk
-  then stops the read. It does not compare bytes, so a re-upload of identical
-  bytes also stops the read. The error is:
-
-  ```text
-  the checksum of the object owning the virtual chunk has changed
-  ```

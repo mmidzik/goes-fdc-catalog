@@ -68,13 +68,20 @@ fires, why it is accepted, and the issue tracking its removal.
 
 ### Published agent guides
 
-A `catalog/**/AGENTS.md` states no facts of its own. It points to the source of each fact, which is a field in a `collection.json` or
-a section of a README under `catalog/`. A copy drifts when the source changes. Put a new fact in its source,
-and add a pointer to the guide only when a reader would not find it.
+The agent guides follow Portolan's documentation best practices
+([documentation.md](https://github.com/portolan-sdi/portolan-spec/blob/main/specs/best-practices/documentation.md)).
+A README is for a person who decides whether to use the data. A collection
+`AGENTS.md` is for an agent that already uses it. It holds the access pattern,
+a tested read, the quirks, the coordinate system and what follows from it, the
+meaning of codes, and the provenance. Do not copy one file into the other.
 
-Every claim in a published README is either quoted from a source or measured
-from the data. An invented join key or column name produces a confident wrong
-answer that nothing downstream catches.
+A `catalog/**/AGENTS.md` leaves out what the machine metadata already states:
+extents, counts and the license. A catalog-level `AGENTS.md` is a table of
+contents for the collection guides.
+
+Every claim in a published README or `AGENTS.md` is either quoted from a source
+or measured from the data. An invented join key or column name produces a
+confident wrong answer that nothing downstream catches.
 
 Variable names come from the catalog, not from a `catalog/**/AGENTS.md`. The
 collection's `cube:variables` and the asset's `bands` list them, and a guide
