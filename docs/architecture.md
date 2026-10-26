@@ -54,7 +54,7 @@ scan mode and the scan start, scan end and creation times.
 
 The variables, grid and codes are described in
 [catalog/README.md](../catalog/README.md). The measured file layout is in the
-[collection agent guide](../catalog/goes-18-fdcc/AGENTS.md).
+[collection README](../catalog/goes-18-fdcc/README.md#source-files).
 
 ## Build method
 

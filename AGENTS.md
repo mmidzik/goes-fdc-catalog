@@ -9,8 +9,9 @@ A Portolan catalog of NOAA's GOES ABI Fire/Hot Spot Characterization as virtual 
 | `README.md` | The repository overview, the main design choices, the pipeline, and how to work here. A short file. |
 | `docs/architecture.md` | Methods. It covers the source data, the build, the Zarr store, the catalog metadata, the measurements, and the Zarr findings. |
 | `catalog/README.md` | The data, for humans: variables, codes, coverage, license, provenance. Published. |
-| `catalog/AGENTS.md` | A short pointer for machine clients. Published. |
-| `catalog/goes-18-fdcc/README.md` and `AGENTS.md` | The read recipe, measured file layout, and the traps. Published. |
+| `catalog/AGENTS.md` | Pointers for machine clients. No facts of its own. Published. |
+| `catalog/goes-18-fdcc/README.md` | The read recipe, the store layout, the measured file layout, and the traps. Published. |
+| `catalog/goes-18-fdcc/AGENTS.md` | Pointers into the collection and its README, in reading order. No facts of its own. Published. |
 | `docs/conformance.md` | Validator findings and the accepted ones. |
 
 Put a new fact in the one file that owns it, and link to it from the others.
@@ -67,9 +68,14 @@ fires, why it is accepted, and the issue tracking its removal.
 
 ### Published agent guides
 
-Every claim in a `catalog/**/AGENTS.md` is either quoted from a source or
-measured from the data. An invented join key or column name produces a
-confident wrong answer that nothing downstream catches.
+A `catalog/**/AGENTS.md` states no facts of its own. It points to the file or
+the field that holds each fact: a `collection.json` or a README under
+`catalog/`. A copy drifts when the source changes. Put a new fact in its source,
+and add a pointer to the guide only when a reader would not find it.
+
+Every claim in a published README is either quoted from a source or measured
+from the data. An invented join key or column name produces a confident wrong
+answer that nothing downstream catches.
 
 Variable names come from the catalog, not from a `catalog/**/AGENTS.md`. The
 collection's `cube:variables` and the asset's `bands` list them, and a guide

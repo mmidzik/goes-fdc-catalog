@@ -17,8 +17,7 @@ catalog is a **mirror** of it.
 - **Browse the metadata**: TODO, needs the published STAC root
 - **Read the build**:
   [the repository on GitHub](https://github.com/mmidzik/goes-fdc-catalog)
-- **The collection**: the [goes-18-fdcc README](goes-18-fdcc/README.md) and its
-  [agent guide](goes-18-fdcc/AGENTS.md)
+- **The collection**: the [goes-18-fdcc README](goes-18-fdcc/README.md)
 
 ## What is here
 
@@ -60,7 +59,7 @@ Measured from the file headers. Each variable is a `time` × `y` × `x` array.
 | `Area`   | Fire Area            | uint16  | m2    | 65535      | `scale_factor` 60.98, `add_offset` 4000     |
 
 `Temp` and `Area` are stored as scaled integers. Most readers apply the scaling
-and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md)
+and the fill value on read. The [collection README](goes-18-fdcc/README.md#traps)
 says how to get the raw integers.
 
 Each scan also has NOAA's own summary values, stored as variables along
@@ -137,8 +136,8 @@ Every scan comes from the `ABI-L2-FDCC` prefix of the `noaa-goes18` bucket,
 listed in the
 [AWS Registry of Open Data](https://registry.opendata.aws/noaa-goes/). Nothing
 is resampled, reprojected, filtered or reclassified. The cube keeps NOAA's grid,
-chunks, compression, codes, scaling and fill values. The cube includes the five pixel variables and leaves out the per-scan summary
-values in the files.
+chunks, compression, codes, scaling and fill values. The cube includes the pixel
+variables and the per-scan summary values in the files.
 
 The methods are in the repository
 [design document](https://github.com/mmidzik/goes-fdc-catalog/blob/main/docs/architecture.md).
@@ -157,3 +156,9 @@ specification defers Zarr support until real Zarr datasets have been tested in
 catalogs
 ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
 This catalog is one of those test cases.
+
+## Catalog structure
+
+Assets and structural links resolve relative to the object that carries them.
+Catalogs here carry no `self` link, so a client tracks its own location. The
+data assets use absolute `https` hrefs built from the public base URL.
