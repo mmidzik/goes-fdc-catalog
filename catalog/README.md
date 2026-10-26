@@ -160,5 +160,5 @@ This catalog is one of those test cases.
 ## Catalog structure
 
 Assets and structural links resolve relative to the object that carries them.
-Catalogs here carry no `self` link, so a client tracks its own location. The
+Catalogs here have no `self` link, so a client tracks its own location. The
 data assets use absolute `https` hrefs built from the public base URL.

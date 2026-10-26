@@ -71,7 +71,7 @@ variable (measured).
 
 ## Store layout
 
-The collection names every variable. `cube:variables` gives each variable's
+The collection lists every variable. `cube:variables` gives each variable's
 dimensions, unit and description. The `icechunk` asset's `bands` gives the data
 type and the nodata value of each pixel variable.
 
@@ -116,7 +116,7 @@ Measured against `https://noaa-goes18.s3.amazonaws.com`:
 These produce a wrong answer with no error. The fire mask codes, the time of a
 scan and the gaps along `time` are in the [catalog README](../README.md).
 
-- **Raw integers.** Open with `mask_and_scale=False` to get NOAA's stored
+- **Scaled values decode to floats.** Open with `mask_and_scale=False` to get NOAA's stored
   values. With the default, a variable with `scale_factor` and `add_offset`
   decodes to float64, and fill values become NaN. A decoded value is never
   below that variable's `add_offset`.
@@ -138,12 +138,16 @@ scan and the gaps along `time` are in the [catalog README](../README.md).
   pixel variable, the build adds an array with no chunk references for that
   scan, so every read returns the fill value. When a file has no per-scan
   value, the build stores the variable's fill value for that scan.
-- **A line plot hides gaps.** It joins the two sides of a gap along `time`.
+- **Gaps along `time`.** A line plot joins the two sides of a gap, which hides
+  the gap.
 - **The bbox crosses the antimeridian.** The collection bbox is NOAA's scene
-  extent, from west 175.6 to east -89.6.
+  extent, from 175.6° E across the antimeridian to 89.6° W.
 - **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
   reference was written. NOAA's bucket answers `412` for a file modified after
   that time (measured with a date before a file's `Last-Modified`). Icechunk
-  then stops with `the checksum of the object owning the virtual chunk has
-  changed`. It does not compare bytes, so a re-upload of identical bytes also
-  stops the read.
+  then stops the read. It does not compare bytes, so a re-upload of identical
+  bytes also stops the read. The error is:
+
+  ```text
+  the checksum of the object owning the virtual chunk has changed
+  ```

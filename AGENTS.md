@@ -68,9 +68,8 @@ fires, why it is accepted, and the issue tracking its removal.
 
 ### Published agent guides
 
-A `catalog/**/AGENTS.md` states no facts of its own. It points to the file or
-the field that holds each fact: a `collection.json` or a README under
-`catalog/`. A copy drifts when the source changes. Put a new fact in its source,
+A `catalog/**/AGENTS.md` states no facts of its own. It points to the source of each fact, which is a field in a `collection.json` or
+a section of a README under `catalog/`. A copy drifts when the source changes. Put a new fact in its source,
 and add a pointer to the guide only when a reader would not find it.
 
 Every claim in a published README is either quoted from a source or measured

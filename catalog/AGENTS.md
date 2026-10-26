@@ -8,7 +8,7 @@ the fact. Read the source, not a copy of it.
 ## Start here
 
 - [`catalog.json`](catalog.json) lists the collections.
-- [README.md](README.md) describes the data: the variables, the codes, the time,
-  the license and the provenance.
+- [README.md](README.md) describes the data, including its variables, codes,
+  time axis, license and provenance.
 - Each collection has its own guide. For `goes-18-fdcc`, read
   [goes-18-fdcc/AGENTS.md](goes-18-fdcc/AGENTS.md) before you open the cube.
