@@ -118,7 +118,7 @@ const map = new maplibregl.Map({
     layers: [
       // Grey and dim the OSM tiles so that the fire pixels stand out.
       { id: "basemap", type: "raster", source: "basemap",
-        paint: { "raster-saturation": -1, "raster-contrast": -0.2, "raster-brightness-max": 0.32 } },
+        paint: { "raster-saturation": -1, "raster-contrast": 0, "raster-brightness-max": 0.45 } },
       // The area of the store. GOES-18 scans all of it every five minutes.
       { id: "extent", type: "line", source: "extent", paint: { "line-color": "#ff9a3c", "line-opacity": 0.5, "line-dasharray": [2, 2] } },
       { id: "fire", type: "raster", source: "fire", paint: { "raster-resampling": "nearest", "raster-fade-duration": 0 } },
