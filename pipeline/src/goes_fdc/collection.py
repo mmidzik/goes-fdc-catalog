@@ -173,7 +173,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             # updates them. Drop this sentence when the cube holds the full record.
             f"It is a demo that holds only the scans from {info['start'][:10]} to "
             f"{info['end'][:10]} (UTC), not the full GOES-18 record. The time range "
-            "will be extended."
+            "may be extended."
         ),
         "license": "CC0-1.0",
         "keywords": ["GOES-18", "ABI", "fire", "FDC", "geostationary", "Zarr"],

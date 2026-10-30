@@ -8,7 +8,7 @@ The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
 
 > **Demo.** The cube holds a short time range, not the full GOES-18 record. The
-> collection's description and `extent` give the dates. The time range will be
+> collection's description and `extent` give the dates. The time range may be
 > extended.
 
 NOAA and NESDIS produce the data and remain the authoritative source. This
