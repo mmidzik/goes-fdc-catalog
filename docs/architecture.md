@@ -49,7 +49,7 @@ Non-goals for this version:
 NOAA writes one netCDF4 (HDF5) file per scan. GOES-18 FDCC files are under
 `s3://noaa-goes18/ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/`. Each file name contains the
 scan mode and the scan start, scan end and creation times.
-`pipeline/src/goes_fdc/keys.py` parses these names.
+`goes_virtual.scan` parses these names.
 
 The variables, grid and codes are described in
 [catalog/README.md](../catalog/README.md). The measured file layout is in the
@@ -62,10 +62,10 @@ flowchart TD
     noaa[("NOAA bucket<br/>noaa-goes18")]
 
     subgraph build["goes-fdc build"]
-        list["List scans<br/>keys.py, obstore"]
-        virt["Virtualize headers<br/>virtualize.py, VirtualiZarr HDFParser"]
+        list["List scans<br/>goes_virtual.listing, obstore"]
+        virt["Virtualize headers<br/>goes_virtual.virtualize, VirtualiZarr HDFParser"]
         check["Check grid and encoding signature"]
-        append["Append and commit<br/>store.py, Icechunk"]
+        append["Append and commit<br/>goes_virtual.store, Icechunk"]
         list --> virt --> check --> append
     end
 
@@ -83,6 +83,11 @@ flowchart TD
     store --> publish
     publish --> coop
 ```
+
+The [`goes-virtual`](../packages/goes-virtual/README.md) package does the
+listing, the virtualization, the checks and the write. The pipeline in
+`pipeline/src/goes_fdc/` adds the daily loop, the store location and the
+catalog metadata.
 
 `goes-fdc build --start ... --end ...` runs the steps in the `goes-fdc build`
 box per UTC day. Worker processes virtualize several days at once, and one
@@ -141,7 +146,8 @@ pixel variable is all fill values. That check is the only pixel read in a build.
 **Writing the store.** Each UTC day is one Icechunk commit, so a failed day
 commits nothing and the next run retries it. The repository authorizes NOAA's
 bucket as a virtual chunk container. It splits manifests along `time` by day, so
-an append writes only the new day's manifests.
+an append writes only the new day's manifests. The first commit sets the `time` encoding to int64
+nanoseconds since 1970-01-01, and every append keeps it.
 
 **Writing the catalog metadata.** `goes_fdc.collection` writes `collection.json`
 from facts it reads from the store: extent, grid, variables and projection. The

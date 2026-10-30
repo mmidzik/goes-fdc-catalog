@@ -18,7 +18,10 @@ from pathlib import Path
 import numpy as np
 import xarray as xr
 
-from . import store, virtualize
+from goes_virtual import store as cube_store
+from goes_virtual import virtualize
+
+from . import store
 
 PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
 EXTENSIONS = [
@@ -77,7 +80,7 @@ def inspect_store(repo_path: Path) -> dict:
     """Facts the collection states, all read from the store itself."""
     repo = store.open_repo(repo_path, SATELLITE)
     ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False, mask_and_scale=False)
-    group = store.root_group(repo)
+    group = cube_store.root_group(repo)
     attrs = dict(group.attrs)
     pixel = sorted(v for v in ds.data_vars if virtualize.is_pixel_array(ds[v].dims))
     a, _, c, _, e, f = attrs["spatial:transform"]

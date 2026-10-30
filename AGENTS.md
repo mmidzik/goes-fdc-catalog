@@ -37,6 +37,15 @@ uv run goes-fdc build --help
 
 Commit `uv.lock`. Never commit `.venv/` or anything under `local/`.
 
+`packages/goes-virtual/` is a separate uv project with its own `uv.lock`. Other projects pin it by git tag, so keep its interface stable and its gates green:
+
+```bash
+cd packages/goes-virtual
+uv run ruff check && uv run ruff format --check && uv run mypy && uv run pytest
+```
+
+Change the package in the same pull request as the pipeline code that needs the change. Tag a release as `goes-virtual-v<major>.<minor>.<patch>` on `main`.
+
 ## Commits and pull requests
 
 Write commits in conventional form. Commit message bodies, issue bodies, pull request bodies, and lasting code comments follow `.claude/output-styles/simplified-technical-english.md`. `.claude/hooks/writing_check.py` checks `gh issue create` and `gh pr create`.
