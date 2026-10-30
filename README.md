@@ -70,6 +70,8 @@ existing URL moves.
 | `tools/publish.py`                    | Syncs `catalog/` to the bucket. From the [template][tpl].                  |
 | `tools/upload_data.py`                | Uploads the Icechunk repo. From the [template][tpl].                       |
 | `.github/workflows/update.yml`        | Appends new scans to the published store. Manual trigger.                  |
+| `site/build.py`, `site/index.html`    | The fire player page. The build reads the published catalog and writes a Zarr v3 store of fire power over California. |
+| `.github/workflows/pages.yml`         | Builds the fire player and deploys it to GitHub Pages.                     |
 
 ```bash
 uv sync
@@ -78,6 +80,13 @@ uv run goes-fdc build --start 2025-01-07T00:00 --end 2025-01-21T00:00
 
 The build reads netCDF headers only and needs no NOAA credentials. It writes the
 store to `local/publish/goes-18-fdcc/icechunk`.
+
+To build and serve the fire player locally:
+
+```bash
+uv run --group site python site/build.py local/site
+python -m http.server -d local/site
+```
 
 ## Working on this repository
 

@@ -31,6 +31,10 @@ examples = [
     "nbconvert>=7.17.2",
     "pystac>=1.15.2",
 ]
+site = [
+    "pystac>=1.15.2",
+    "rioxarray>=0.23.0",
+]
 upload = [
     "boto3>=1.43.116",
 ]

@@ -612,6 +612,10 @@ examples = [
     { name = "nbconvert" },
     { name = "pystac" },
 ]
+site = [
+    { name = "pystac" },
+    { name = "rioxarray" },
+]
 upload = [
     { name = "boto3" },
 ]
@@ -640,6 +644,10 @@ examples = [
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "nbconvert", specifier = ">=7.17.2" },
     { name = "pystac", specifier = ">=1.15.2" },
+]
+site = [
+    { name = "pystac", specifier = ">=1.15.2" },
+    { name = "rioxarray", specifier = ">=0.23.0" },
 ]
 upload = [{ name = "boto3", specifier = ">=1.43.116" }]
 viz = [{ name = "matplotlib", specifier = ">=3.11.2" }]
