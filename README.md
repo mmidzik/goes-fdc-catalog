@@ -88,7 +88,7 @@ uv sync
 uv run pytest                          # unit tests, no network
 uv run python tests/run_all.py         # gates: conformance, links, STAC validity
 uv run python -m goes_fdc.collection \
-    --public-base https://data.source.coop/<ACCOUNT>/goes-fdc
+    --public-base https://data.source.coop/mmidzik/goes-fdc
 uv run python tools/publish.py         # dry run: catalog metadata
 uv run python tools/upload_data.py     # dry run: the Icechunk repo
 ```
@@ -109,11 +109,9 @@ Data files never enter git. `.gitignore` blocks the common formats, plus
 
 - **Extend the time range** on a cloud machine with the same `goes-fdc build`
   command.
-- **Publish to Source Cooperative.** Replace the `<ACCOUNT>` placeholder in
-  `catalog.publish.yaml`, the collection asset hrefs and the published docs,
-  then regenerate the collection. `tools/publish.py` refuses `--confirm` while
-  the placeholder is set. Check that Source Cooperative supports the conditional
-  writes Icechunk needs.
+- **Publish to Source Cooperative.** The target is the `mmidzik/goes-fdc`
+  product. Check that Source Cooperative supports the conditional writes
+  Icechunk needs, then upload the store and the catalog.
 - Run the update workflow once, then decide whether to schedule it.
 
 ## Acknowledgements

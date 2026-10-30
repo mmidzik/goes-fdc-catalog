@@ -1,7 +1,7 @@
 """Write the STAC collection for a built store.
 
     uv run python -m goes_fdc.collection \\
-        --public-base https://data.source.coop/<ACCOUNT>/goes-fdc
+        --public-base https://data.source.coop/mmidzik/goes-fdc
 
 Reads extent, grid, variables and projection from the store, so the metadata
 cannot drift from the data. The store is built in place under data_dir, so
@@ -206,7 +206,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
         },
         "assets": {
             "icechunk": {
-                "href": f"{root}/icechunk/",
+                "href": f"{root}/icechunk",
                 "type": MEDIA_TYPE,
                 "title": "Virtual Zarr cube (Icechunk repository)",
                 "description": (
@@ -245,7 +245,7 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
              "title": "NOAA GOES on the AWS Registry of Open Data"},
             {"rel": "license", "href": "https://creativecommons.org/publicdomain/zero/1.0/legalcode", "type": "text/html",
              "title": "CC0 1.0 Universal Public Domain Dedication"},
-            {"rel": "store", "href": f"{root}/icechunk/", "type": MEDIA_TYPE,
+            {"rel": "store", "href": f"{root}/icechunk", "type": MEDIA_TYPE,
              "title": "Icechunk repository with the Zarr store"},
         ],
     }

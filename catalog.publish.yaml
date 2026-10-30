@@ -3,23 +3,29 @@
 # Everything under publish_dir is synced 1:1 to write_prefix. Data files are
 # never placed under publish_dir, so they cannot be published by accident.
 #
-# The target is Maya Midzik's personal Source Cooperative account. <ACCOUNT>
-# is a placeholder until the account name is set. tools/publish.py runs a dry
-# run with it and refuses --confirm.
+# The target is the goes-fdc product in Maya Midzik's personal Source
+# Cooperative account, mmidzik.
 
-# The S3 URI uploads are written to. Copy it from your storage provider.
-write_prefix: s3://us-west-2.opendata.source.coop/<ACCOUNT>/goes-fdc
+# The S3 URI uploads are written to. Uploads go through the Source
+# Cooperative data proxy, so the bucket is the account and the key prefix is
+# the product. It is not an AWS bucket.
+write_prefix: s3://mmidzik/goes-fdc
 
 # The public base URL that serves write_prefix. Every href in the catalog is
 # built from this, so it goes in the STAC JSON and write_prefix does not.
-public_base: https://data.source.coop/<ACCOUNT>/goes-fdc
+public_base: https://data.source.coop/mmidzik/goes-fdc
 
+# The proxy ignores the region, but many SDKs do not sign a request without
+# one.
 region: us-west-2
 
-# The named AWS profile the publisher uses. Optional. Leave it commented out
-# to use the default boto3 session. Source Cooperative issues per-account
-# credentials, so set the profile name you stored them under.
-# profile: my-source-coop-profile
+# The Source Cooperative data proxy. It speaks the S3 API and accepts only
+# credentials from Source Cooperative.
+endpoint_url: https://data.source.coop
+
+# The named AWS profile the publisher uses. Locally it is the profile that
+# runs `source-coop creds` as its credential_process. CI sets no profile.
+profile: source-coop
 
 # The directory that IS the published catalog, synced 1:1 to write_prefix.
 # Nothing outside it is ever uploaded.

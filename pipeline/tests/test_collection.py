@@ -46,7 +46,11 @@ def test_data_assets_use_absolute_https_hrefs():
     assert set(c["assets"]) == {"icechunk", "thumbnail"}
     assert c["assets"]["icechunk"]["href"].startswith(BASE + "/goes-18-fdcc/")
     assert "xarray:open_kwargs" in c["assets"]["icechunk"]
-    assert c["assets"]["icechunk"]["href"].endswith("/icechunk/")
+    # icechunk.http_storage appends "/refs/...". A trailing slash makes an empty
+    # path segment, and the Source Cooperative proxy rejects it.
+    assert c["assets"]["icechunk"]["href"].endswith("/icechunk")
+    store_link = next(link for link in c["links"] if link["rel"] == "store")
+    assert store_link["href"] == c["assets"]["icechunk"]["href"]
     assert c["assets"]["thumbnail"]["roles"] == ["thumbnail"]
 
 
