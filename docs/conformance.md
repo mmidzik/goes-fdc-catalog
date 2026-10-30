@@ -91,7 +91,7 @@ open after the upstream fix ships.
 
 Because of the crash above, stac-check does not validate the extension schemas
 of a collection that declares the profile. For this catalog, those are the
-`zarr`, `xarray-assets`, `datacube`, `projection`, `render` and `file` fields.
+`zarr`, `datacube`, `projection`, `render` and `file` fields.
 
 [stac-node-validator](https://github.com/stac-utils/stac-node-validator)
 validates them. The Portolan registry runs release 2.0.0 on every submission.

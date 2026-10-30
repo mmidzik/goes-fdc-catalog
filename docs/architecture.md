@@ -194,7 +194,7 @@ and are written three times, once for each kind of reader:
 | Zarr `stac` convention v0.1           | Follows                           | `stac:link` points to the collection                                                                                                      |
 | CF conventions                        | Follows for the pixel variables   | NOAA's CF attributes, with a `grid_mapping` that resolves                                                                                 |
 | STAC 1.1                              | Follows                           | rashid's schema check reports no errors. stac-check crashes on the collection, as [conformance.md](conformance.md) records                |
-| STAC extensions                       | Follows                           | `zarr`, `xarray-assets`, `datacube`, `projection`, `render` and `file`                                                                    |
+| STAC extensions                       | Follows                           | `zarr`, `datacube`, `projection`, `render` and `file`                                                                    |
 | STAC Zarr best practices              | Follows                           | Media type `application/vnd.zarr; version=3`, a collection-level asset for the store group, variables in `bands`, and a `rel: store` link |
 | Portolan core                         | Follows                           | The catalog and collection pass rashid with no errors                                                                                     |
 | Proposed Portolan Zarr profile        | Follows where a virtual store can | See [Zarr in Portolan](#zarr-in-portolan)                                                                                                 |
@@ -218,7 +218,7 @@ collection metadata.
 
 **STAC requirements.** A client needs these fields to open the store:
 
-- `xarray:open_kwargs`, for the engine and the consolidation setting
+- `zarr:consolidated`, for the consolidation setting
 - `zarr:node_type`, for a group or an array
 - `proj:wkt2` with `proj:code` null, for a CRS that has no EPSG code
 - `proj:transform` and `proj:shape`, for the grid in CRS units

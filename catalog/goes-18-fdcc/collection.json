@@ -4,7 +4,6 @@
   "stac_extensions": [
     "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json",
     "https://stac-extensions.github.io/zarr/v1.1.0/schema.json",
-    "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
     "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
     "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
     "https://stac-extensions.github.io/render/v2.0.0/schema.json",
@@ -359,11 +358,6 @@
       "zarr:zarr_format": 3,
       "zarr:node_type": "group",
       "zarr:consolidated": false,
-      "xarray:open_kwargs": {
-        "engine": "zarr",
-        "consolidated": false,
-        "decode_coords": "all"
-      },
       "bands": [
         {
           "name": "Area",

@@ -50,8 +50,11 @@ def open_cube(asset: pystac.Asset) -> xr.Dataset:
             {NOAA: icechunk.Credentials.HttpAccess()}
         ),
     )
-    kwargs = {k: v for k, v in asset.extra_fields["xarray:open_kwargs"].items() if k != "engine"}
-    return xr.open_zarr(repo.readonly_session(branch="main").store, **kwargs)
+    return xr.open_zarr(
+        repo.readonly_session(branch="main").store,
+        consolidated=asset.extra_fields["zarr:consolidated"],
+        decode_coords="all",
+    )
 
 
 def fire_power(asset: pystac.Asset) -> xr.DataArray:

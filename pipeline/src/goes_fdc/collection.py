@@ -27,7 +27,6 @@ PORTOLAN_SCHEMA = "https://schemas.portolan-sdi.org/portolan/v0.2.0/schema.json"
 EXTENSIONS = [
     PORTOLAN_SCHEMA,
     "https://stac-extensions.github.io/zarr/v1.1.0/schema.json",
-    "https://stac-extensions.github.io/xarray-assets/v1.0.0/schema.json",
     "https://stac-extensions.github.io/datacube/v2.2.0/schema.json",
     "https://stac-extensions.github.io/projection/v2.0.0/schema.json",
     "https://stac-extensions.github.io/render/v2.0.0/schema.json",
@@ -227,9 +226,6 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
                 "zarr:zarr_format": 3,
                 "zarr:node_type": "group",
                 "zarr:consolidated": False,
-                # decode_coords="all" makes goes_imager_projection a coordinate, so CF
-                # readers such as rioxarray find the CRS through grid_mapping.
-                "xarray:open_kwargs": {"engine": "zarr", "consolidated": False, "decode_coords": "all"},
                 "bands": [
                     {"name": v, "description": m["description"], "unit": m["unit"],
                      "data_type": m["dtype"], "nodata": m["nodata"]}

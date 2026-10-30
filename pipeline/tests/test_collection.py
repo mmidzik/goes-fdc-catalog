@@ -45,7 +45,7 @@ def test_data_assets_use_absolute_https_hrefs():
     c = collection_json(INFO, BASE, [0, 0, 1, 1], FILES)
     assert set(c["assets"]) == {"icechunk", "thumbnail"}
     assert c["assets"]["icechunk"]["href"].startswith(BASE + "/goes-18-fdcc/")
-    assert "xarray:open_kwargs" in c["assets"]["icechunk"]
+    assert "xarray:open_kwargs" not in c["assets"]["icechunk"]
     # icechunk.http_storage appends "/refs/...". A trailing slash makes an empty
     # path segment, and the Source Cooperative proxy rejects it.
     assert c["assets"]["icechunk"]["href"].endswith("/icechunk")
@@ -62,7 +62,6 @@ def test_store_asset_follows_the_proposed_zarr_profile():
     assert asset["proj:wkt2"] == "WKT"
     assert [b["name"] for b in asset["bands"]] == ["Mask", "DQF", "Power", "Temp", "Area"]
     assert asset["bands"][0]["nodata"] == -99
-    assert asset["xarray:open_kwargs"]["decode_coords"] == "all"
     store = [link for link in c["links"] if link["rel"] == "store"]
     assert store and store[0]["href"] == asset["href"]
 

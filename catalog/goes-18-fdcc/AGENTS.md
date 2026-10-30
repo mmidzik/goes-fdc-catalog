@@ -18,8 +18,9 @@ recipe below finds its variable by description.
 ## Access
 
 Open the `icechunk` asset with `icechunk` and `xarray`, and authorize NOAA's
-bucket as a virtual chunk container. Pass the asset's `xarray:open_kwargs` to
-`xarray.open_dataset`. This read takes every name and number from the metadata.
+bucket as a virtual chunk container. Open the store with `xarray.open_zarr`, and
+take `consolidated` from the asset's `zarr:consolidated`. This read takes every
+name and number from the metadata.
 It sums positive fire radiative power over the Palisades fire:
 
 ```python
@@ -36,7 +37,8 @@ config.set_virtual_chunk_container(icechunk.VirtualChunkContainer(NOAA, icechunk
 credentials = icechunk.containers_credentials({NOAA: icechunk.Credentials.HttpAccess()})
 repo = icechunk.Repository.open(icechunk.http_storage(asset["href"]), config=config,
                                 authorize_virtual_chunk_access=credentials)
-ds = xr.open_dataset(repo.readonly_session(branch="main").store, **asset["xarray:open_kwargs"])
+ds = xr.open_zarr(repo.readonly_session(branch="main").store,
+                  consolidated=asset["zarr:consolidated"], decode_coords="all")
 
 # Longitude and latitude to pixel indices, with proj:wkt2 and proj:transform.
 to_grid = pyproj.Transformer.from_crs("EPSG:4326", pyproj.CRS.from_wkt(asset["proj:wkt2"]), always_xy=True)
@@ -56,9 +58,8 @@ Source Cooperative URL is provisional and untested.
 
 - Without the virtual chunk container, the open fails with "you need to
   authorize the virtual chunk container".
-- `xarray:open_kwargs` sets `decode_coords="all"`, which makes the
-  `grid_mapping` variable a coordinate. rioxarray then finds the CRS. Without
-  it, `rio.crs` is `None` (measured).
+- `decode_coords="all"` makes the `grid_mapping` variable a coordinate.
+  rioxarray then finds the CRS. Without it, `rio.crs` is `None` (measured).
 - `chunks={}` needs `dask`, which a plain read does not.
 - Each chunk covers one scan by 250 × 250 pixels. A time series at one pixel
   reads one chunk per scan.
