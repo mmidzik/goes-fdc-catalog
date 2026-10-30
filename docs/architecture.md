@@ -90,9 +90,8 @@ process commits them in time order. Each day is one commit, so a stopped build
 resumes at the next day. `--processes` sets the number of days in flight. Each
 worker holds the day it builds, and the main process holds up to `--processes`
 finished days plus the day it commits. Virtualization takes most of the time,
-and the commit is small. Other methods
-could parallelize the build further in the future, for example workers on
-several machines that feed the one committer.
+and the commit is small. A future build could also run workers on several
+machines that feed the one committer.
 
 **Listing.** The bucket listing is the index, so there is no separate indexer or
 database. The build lists one hour prefix at a time and starts after the last
