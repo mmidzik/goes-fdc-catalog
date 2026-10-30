@@ -280,8 +280,11 @@ def fill_missing(parts: list[xr.Dataset], scans: list[Scan], lay: Layout) -> lis
     return out
 
 
-def build_cube(scans: list[Scan], workers: int = 16) -> xr.Dataset | None:
-    """The virtual cube for a batch of scans, or None when no scan is usable."""
+def build_cube(scans: list[Scan], workers: int = 16) -> tuple[list[Scan], xr.Dataset | None]:
+    """The scans that the cube holds, and the virtual cube for a batch of scans.
+
+    The function drops an unusable scan. The cube is None when no scan is usable.
+    """
     if not scans:
         raise ValueError("no scans to virtualize")
     satellite = scans[0].satellite
@@ -295,7 +298,7 @@ def build_cube(scans: list[Scan], workers: int = 16) -> xr.Dataset | None:
         results = list(pool.map(lambda s: virtualize_scan(s, registry, lay), scans))
     scans, parts = [s for s, p in zip(scans, results) if p is not None], [p for p in results if p is not None]
     if not parts:
-        return None
+        return [], None
     first = dataset_signature(parts[0])
     for scan, part in zip(scans, parts):
         check_signature(first, dataset_signature(part), scan.key)
@@ -306,4 +309,4 @@ def build_cube(scans: list[Scan], workers: int = 16) -> xr.Dataset | None:
     )
     # The other coordinates are per-scan scalars (angles, bounds). Keep the cube to
     # its three dimension coordinates.
-    return cube.drop_vars([c for c in cube.coords if c not in KEEP_COORDS])
+    return scans, cube.drop_vars([c for c in cube.coords if c not in KEEP_COORDS])
