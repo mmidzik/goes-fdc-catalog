@@ -86,8 +86,11 @@ flowchart TD
 
 `goes-fdc build --start ... --end ...` runs the steps in the `goes-fdc build`
 box per UTC day. Worker processes virtualize several days at once, and one
-process commits them in time order, so a stopped build resumes at the next day.
-Virtualization takes most of the time, and the commit is small. Other methods
+process commits them in time order. Each day is one commit, so a stopped build
+resumes at the next day. `--processes` sets the number of days in flight. Each
+worker holds the day it builds, and the main process holds up to `--processes`
+finished days plus the day it commits. Virtualization takes most of the time,
+and the commit is small. Other methods
 could parallelize the build further in the future, for example workers on
 several machines that feed the one committer.
 

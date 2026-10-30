@@ -17,8 +17,9 @@ from . import collection, keys, store, virtualize
 
 # One Icechunk commit per UTC day, about 288 CONUS scans. Worker processes list
 # and virtualize days ahead of the commit. One process commits the days in time
-# order, so a stopped build resumes at the next day. A build holds at most
-# --processes days in memory, plus the day it commits.
+# order. A stopped build resumes at the next day. Each worker holds the day that
+# it builds. The main process holds up to --processes finished days and the day
+# that it commits.
 DAY = timedelta(days=1)
 
 # Each line carries its time, so the gap between two lines is the time a step took.
@@ -64,26 +65,26 @@ def virtualize_day(lo: datetime, hi: datetime, *, satellite: str, product: str,
                    cutoff: datetime | None, workers: int):
     """List and virtualize one day. Runs in a worker process.
 
-    Returns the new scans and their cube. The cube is None when no scan is new
-    or usable.
+    Returns the number of new scans, the scans that the cube holds, and the
+    cube. The cube is None when no scan is new or usable.
     """
     scans = keys.list_scans(satellite, product, lo, hi)
     if cutoff is not None:
         scans = [s for s in scans if s.start > cutoff]
     if not scans:
-        return scans, None
+        return 0, [], None
     log.info("%s: listed %d scans", f"{lo:%F}", len(scans))
-    cube = virtualize.build_cube(scans, workers=workers)
+    kept, cube = virtualize.build_cube(scans, workers=workers)
     log.info("%s: virtualized", f"{lo:%F}")
-    return scans, cube
+    return len(scans), kept, cube
 
 
 def in_order(pool: Executor, windows: Iterator[tuple[datetime, datetime]],
              task: Callable, depth: int) -> Iterator:
     """Run task(lo, hi) on the pool for each window, and yield (lo, result) in window order.
 
-    At most depth windows are in flight. The next window starts as soon as the
-    caller takes a result, so the pool works while the caller commits.
+    At most depth windows are in flight. The next window starts when the caller
+    takes a result. The pool works while the caller commits.
     """
     pending = deque()
 
@@ -101,10 +102,28 @@ def in_order(pool: Executor, windows: Iterator[tuple[datetime, datetime]],
             submit_next()
             yield lo, result
     finally:
-        # A failed day stops the build. Days after it must not commit, so
-        # cancel the ones that have not started.
+        # A failed day stops the build. Days after it must not commit. Cancel
+        # the days that have not started.
         for _, future in pending:
             future.cancel()
+
+
+def stop(pool: ProcessPoolExecutor) -> None:
+    """Stop the pool and its running days at once.
+
+    A running future cannot be cancelled. The pool exit waits for it. The
+    workers only read data, so it is safe to terminate them.
+    """
+    for process in list((pool._processes or {}).values()):
+        process.terminate()
+    pool.shutdown(wait=False, cancel_futures=True)
+
+
+def positive_int(s: str) -> int:
+    n = int(s)
+    if n < 1:
+        raise argparse.ArgumentTypeError(f"must be 1 or more, not {n}")
+    return n
 
 
 def build(args: argparse.Namespace) -> None:
@@ -120,22 +139,26 @@ def build(args: argparse.Namespace) -> None:
     task = partial(virtualize_day, satellite=args.satellite, product=args.product,
                    cutoff=cutoff, workers=args.workers)
     total = 0
-    # Spawn, not fork. This process already runs the Icechunk and obstore
-    # thread pools, and a forked child of a threaded process can deadlock.
+    # Use spawn. This process runs the Icechunk and obstore thread pools. A
+    # forked child of a threaded process can deadlock.
     context = multiprocessing.get_context("spawn")
     with ProcessPoolExecutor(max_workers=args.processes, mp_context=context,
                              initializer=setup_logging) as pool:
-        windows = day_windows(start, end, cutoff)
-        for lo, (scans, cube) in in_order(pool, windows, task, args.processes):
-            if not scans:
-                log.info("%s: no new scans", f"{lo:%F}")
-                continue
-            if cube is None:
-                log.info("%s: no usable scans", f"{lo:%F}")
-                continue
-            snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}", link)
-            log.info("%s: committed %s", f"{lo:%F}", snap)
-            total += len(scans)
+        try:
+            windows = day_windows(start, end, cutoff)
+            for lo, (listed, scans, cube) in in_order(pool, windows, task, args.processes):
+                if not listed:
+                    log.info("%s: no new scans", f"{lo:%F}")
+                    continue
+                if cube is None:
+                    log.info("%s: no usable scans", f"{lo:%F}")
+                    continue
+                snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}", link)
+                log.info("%s: committed %s", f"{lo:%F}", snap)
+                total += len(scans)
+        except BaseException:
+            stop(pool)
+            raise
     log.info("done: %d scans added", total)
 
 
@@ -148,9 +171,9 @@ def main() -> None:
     b.add_argument("--start", required=True, help="UTC, ISO 8601, e.g. 2025-01-07T00:00")
     b.add_argument("--end", required=True, help="UTC, exclusive")
     b.add_argument("--store", default=str(store.DEFAULT_STORE), help="local path or s3://bucket/prefix of the Icechunk repo")
-    b.add_argument("--workers", type=int, default=16,
+    b.add_argument("--workers", type=positive_int, default=16,
                    help="threads per process that read scan headers")
-    b.add_argument("--processes", type=int, default=2,
+    b.add_argument("--processes", type=positive_int, default=2,
                    help="days virtualized at once, one process each")
     b.add_argument("--public-base", default=None,
                    help="public base URL of the catalog, for the store's link to its collection "

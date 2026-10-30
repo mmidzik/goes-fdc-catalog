@@ -1,6 +1,8 @@
+import argparse
+import multiprocessing
 import threading
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
@@ -77,4 +79,22 @@ def test_in_order_stops_at_a_failed_day_and_cancels_the_rest():
             for lo, day in cli.in_order(pool, iter(windows), task, depth=3):
                 seen.append(day)
     assert seen == [1]
-    assert max(started) < 10
+    # Day 4 is submitted after day 1 and is still queued when day 2 fails.
+    assert 4 not in started
+
+
+def test_stop_does_not_wait_for_running_days():
+    pool = ProcessPoolExecutor(max_workers=1, mp_context=multiprocessing.get_context("spawn"))
+    future = pool.submit(time.sleep, 60)
+    while not future.running():
+        time.sleep(0.05)
+    t0 = time.monotonic()
+    cli.stop(pool)
+    pool.shutdown(wait=True)
+    assert time.monotonic() - t0 < 10
+
+
+@pytest.mark.parametrize("value", ["0", "-1"])
+def test_positive_int_refuses_less_than_one(value):
+    with pytest.raises(argparse.ArgumentTypeError):
+        cli.positive_int(value)
