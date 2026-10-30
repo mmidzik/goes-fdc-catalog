@@ -130,28 +130,38 @@ const map = new maplibregl.Map({
   },
 });
 
-let cur = 0, playing = false;
-async function draw(i) {
+let cur = 0, playing = false, rendering = null;
+// The cursor and the numbers move at once. The map renders one frame at a time, and each
+// frame shows the scan at the cursor when it starts. A drag never queues frames to replay.
+function draw(i) {
   cur = Math.max(0, Math.min(nt - 1, i));
-  const px = image.data;
-  px.fill(0);
-  for (let t = cur + 1; t < Math.min(nt, cur + 8); t++) scan(t);
-  for (let age = TRAIL - 1; age >= 0; age--) {
-    const t = cur - age;
-    if (t < 0) continue;
-    const data = await scan(t), alpha = 255 * (1 - age / TRAIL) ** 1.5;
-    for (let p = 0; p < data.length; p++) {
-      if (!(data[p] > 0)) continue;
-      const [r, g, b] = color(data[p]);
-      px[4 * p] = r; px[4 * p + 1] = g; px[4 * p + 2] = b; px[4 * p + 3] = alpha;
-    }
-  }
-  ctx.putImageData(image, 0, 0);
-  map.triggerRepaint();
   document.getElementById("clock").textContent = new Date(times[cur] * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
   document.getElementById("scan").textContent = `${cur + 1} / ${nt}`;
   document.getElementById("frp").textContent = `${Math.round(total[cur]).toLocaleString("en-US")} MW`;
   drawStrip();
+  return (rendering ??= render().finally(() => { rendering = null; }));
+}
+async function render() {
+  let shown;
+  do {
+    shown = cur;
+    // Fetch ahead only during play. A drag would fill the connections with scans it skips.
+    if (playing) for (let t = shown + 1; t < Math.min(nt, shown + 8); t++) scan(t);
+    const ages = [...Array(TRAIL).keys()].reverse().filter((age) => shown - age >= 0);
+    const layers = await Promise.all(ages.map((age) => scan(shown - age)));
+    const px = image.data;
+    px.fill(0);
+    ages.forEach((age, k) => {
+      const data = layers[k], alpha = 255 * (1 - age / TRAIL) ** 1.5;
+      for (let p = 0; p < data.length; p++) {
+        if (!(data[p] > 0)) continue;
+        const [r, g, b] = color(data[p]);
+        px[4 * p] = r; px[4 * p + 1] = g; px[4 * p + 2] = b; px[4 * p + 3] = alpha;
+      }
+    });
+    ctx.putImageData(image, 0, 0);
+    map.triggerRepaint();
+  } while (shown !== cur);
 }
 
 // The timeline: total FRP of each scan, and a cursor at the current scan.
@@ -185,7 +195,13 @@ button.onclick = () => {
   playing = !playing; button.textContent = playing ? "Pause" : "Play";
   if (playing) { if (cur >= nt - 1) cur = 0; play(); }
 };
-const seek = (ev) => { const r = strip.getBoundingClientRect(); draw(Math.round(((ev.clientX - r.left) / r.width) * (nt - 1))); };
+// A drag sends more pointer events than the screen shows. Draw once per frame, at the last position.
+let target = null;
+const seek = (ev) => {
+  const r = strip.getBoundingClientRect();
+  if (target === null) requestAnimationFrame(() => { draw(target); target = null; });
+  target = Math.round(((ev.clientX - r.left) / r.width) * (nt - 1));
+};
 strip.addEventListener("pointerdown", (ev) => { strip.setPointerCapture(ev.pointerId); playing = false; seek(ev); });
 strip.addEventListener("pointermove", (ev) => { if (strip.hasPointerCapture(ev.pointerId)) seek(ev); });
 addEventListener("keydown", (ev) => {
