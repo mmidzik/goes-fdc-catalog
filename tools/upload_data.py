@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Upload staged data files to the same bucket prefix the catalog publishes to.
 
+This script comes from the portolan-catalog-template:
+https://github.com/portolan-sdi/portolan-catalog-template
+This repository adds the placeholder guard.
+
 ``tools/publish.py`` walks ``publish_dir`` and nothing else. That boundary is
 the publish contract and this script does not widen it. GeoParquet partitions
 and PMTiles archives are too large for git, so they live outside ``catalog/``
