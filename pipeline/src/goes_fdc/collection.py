@@ -82,7 +82,10 @@ def inspect_store(repo_path: Path) -> dict:
     ds = xr.open_zarr(repo.readonly_session("main").store, consolidated=False, mask_and_scale=False)
     group = cube_store.root_group(repo)
     attrs = dict(group.attrs)
-    pixel = sorted(v for v in ds.data_vars if virtualize.is_pixel_array(ds[v].dims))
+    # The store lists its arrays in no fixed order. Sort them, so that a rebuild
+    # of the collection does not reorder cube:variables.
+    names = sorted(ds.data_vars)
+    pixel = [v for v in names if virtualize.is_pixel_array(ds[v].dims)]
     a, _, c, _, e, f = attrs["spatial:transform"]
     height, width = attrs["spatial:shape"]
     return {
@@ -110,9 +113,9 @@ def inspect_store(repo_path: Path) -> dict:
                 "unit": ds[v].attrs.get("units", ""),
                 "description": description(ds[v].attrs),
             }
-            for v in ds.data_vars if v not in pixel
+            for v in names if v not in pixel
         },
-        "bbox": next((b for v in ds.data_vars if not ds[v].dims and (b := bbox_from(ds[v].attrs))), None),
+        "bbox": next((b for v in names if not ds[v].dims and (b := bbox_from(ds[v].attrs))), None),
         # NOAA states the grid as 2 km at nadir. The transform step is the exact
         # nadir spacing, about 2,004 m, so gsd is that step to the nearest 100 m.
         "gsd": int(round(abs(a), -2)),
