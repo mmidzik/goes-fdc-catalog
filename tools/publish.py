@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Sync the published directory to object storage, 1:1.
 
+This script comes from the portolan-catalog-template:
+https://github.com/portolan-sdi/portolan-catalog-template
+This repository adds the root ``self`` link and the placeholder guard. It
+also takes the credential order, ``endpoint_url``, retries and multipart
+settings from firms-catalog.
+
 ``catalog/`` *is* the published catalog: everything under it is published, and
 nothing outside it ever is. That boundary is the whole publish contract, and it
 is enforced structurally — this script walks ``publish_dir`` and has no flag,

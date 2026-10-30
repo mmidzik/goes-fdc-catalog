@@ -68,8 +68,8 @@ existing URL moves.
 | `pipeline/src/goes_fdc/cli.py`        | The `goes-fdc build` command. One commit per UTC day, and resumable. |
 | `pipeline/src/goes_fdc/collection.py` | Writes `collection.json` from facts read from the store.             |
 | `pipeline/src/goes_fdc/thumbnail.py`  | Renders the collection thumbnail.                                    |
-| `tools/publish.py`                    | Syncs `catalog/` to the bucket. From the template.                   |
-| `tools/upload_data.py`                | Uploads the Icechunk repo. From the template.                        |
+| `tools/publish.py`                    | Syncs `catalog/` to the bucket. From the [template][tpl].            |
+| `tools/upload_data.py`                | Uploads the Icechunk repo. From the [template][tpl].                 |
 | `.github/workflows/update.yml`        | Appends new scans to the published store. Manual trigger.            |
 
 ```bash
@@ -127,6 +127,11 @@ Tom Nicholas and the Earthmover team.
 Chris Holmes's
 [firms-catalog](https://github.com/portolan-mirrors/firms-catalog) is the model
 for how this repository is laid out and documented.
+
+`tools/publish.py` and `tools/upload_data.py` come from the
+[portolan-catalog-template](https://github.com/portolan-sdi/portolan-catalog-template).
+
+[tpl]: https://github.com/portolan-sdi/portolan-catalog-template
 
 ## License
 
