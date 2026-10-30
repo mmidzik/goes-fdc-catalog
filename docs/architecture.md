@@ -85,7 +85,12 @@ flowchart TD
 ```
 
 `goes-fdc build --start ... --end ...` runs the steps in the `goes-fdc build`
-box one UTC day at a time. A long build has only one day in memory, and a
+box per UTC day. Worker processes list and virtualize days ahead of the commit.
+`--processes` sets how many days they work on at once, and `--workers` sets the
+header-reading threads in each process. One process commits the days in time
+order, because each append grows `time` on every array and Icechunk takes one
+writer per commit. A build holds at most `--processes` days in memory plus the
+day it commits. A failed day stops the build before any later day commits, so a
 stopped build resumes at the next day.
 
 **Listing.** The bucket listing is the index, so there is no separate indexer or
@@ -141,6 +146,41 @@ an append writes only the new day's manifests.
 **Writing the catalog metadata.** `goes_fdc.collection` writes `collection.json`
 from facts it reads from the store: extent, grid, variables and projection. The
 metadata cannot drift from the data, because the data is its only input.
+
+### Parallelizing further
+
+The build parallelizes on one machine. It keeps one committer, because the
+commit is small and virtualization takes most of the time. Measure that split
+from the log timestamps before any of the changes below. Run a large build in
+`us-east-1`, next to NOAA's bucket, because each scan costs several round trips.
+
+**Fan out across machines.** Split the build into two phases:
+
+1. Many workers, for example Lambda, Lithops or Coiled, virtualize one day each.
+   Each worker checks the grid signature and writes the day's references to an
+   intermediate file in object storage.
+2. One process reads the intermediate files in time order, appends them, and
+   commits.
+
+The intermediate files are checkpoints. A failed day retries alone, and the
+commit phase can run again without reads from NOAA. A grid change shows up in
+phase 1 as a set of days that do not match, before the build stops partway.
+Earthmover's GOES-16 work uses this shape. This is worth the extra
+infrastructure only when one machine is too slow, or when the build covers many
+satellites and sectors.
+
+**Parallel writes into one commit.** Icechunk accepts many writers in one
+commit when they write disjoint regions of arrays that already have their final
+shape. The build would resize `time` once, let workers write regions, merge
+their sessions, and commit once. This removes the conflict on array metadata
+that forces one writer for each append. It is not tested here, and it needs
+region writes of virtual references in VirtualiZarr. The commit is not the
+bottleneck, so this change is not useful now.
+
+**Larger commits.** The commit size is a choice, not a limit of Icechunk. A week
+per commit gives fewer commits and less overhead per commit. It costs more
+memory and a larger retry when a commit fails. Manifest splitting stays at one
+day of scans in each case.
 
 ## The Zarr store
 
