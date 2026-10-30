@@ -1,8 +1,8 @@
 # goes-virtual
 
-`goes-virtual` builds virtual Zarr cubes over NOAA GOES ABI netCDF files and writes them to Icechunk. A cube holds byte-range references into NOAA's public buckets. It holds no pixel data.
+`goes-virtual` builds virtual Zarr cubes over NOAA GOES ABI netCDF files and writes them to Icechunk. A cube stores byte-range references into NOAA's public buckets and no pixel data.
 
-The `goes-fdc` pipeline in this repository uses it to build the full-grid GOES-18 FDCC cube for the catalog. Another project can pin it from git and build its own cubes, for example a cube cropped to one area.
+The `goes-fdc` pipeline in this repository uses it to build the full-grid GOES-18 FDCC cube for the catalog. Another project can pin it from git and build its own cubes, such as a cube cropped to one area.
 
 ## Install
 
@@ -87,7 +87,7 @@ Pixel variables stay virtual. The coordinates, the projection, the per-scan valu
 
 ### Time
 
-The `time` coordinate is the file's `t` variable, the middle of the scan, in UTC. Some files carry the fill value -999 in `t`. When `t` is more than 1 minute outside the scan's start and end stamps, the build uses the middle of the stamps and logs a warning.
+The `time` coordinate is the file's `t` variable, the middle of the scan, in UTC. In some files, `t` is the fill value –999. When `t` is more than 1 minute outside the scan's start and end stamps, the build uses the middle of the stamps and logs a warning.
 
 ### Root attributes
 
@@ -102,14 +102,14 @@ The cube's root attributes are the GeoZarr conventions only, written with `zarr-
 
 `x` and `y` stay in radians, as CF and NOAA define them. The transform is in metres, which is scan angle times the satellite height.
 
-`grid.crop` cuts a cube to the whole source chunks that cover a box in EPSG:4326 degrees. It rewrites `spatial:shape` and `spatial:transform` for the cropped grid. It refuses a crop that reaches past the Earth disk.
+`grid.crop` cuts a cube to the whole source chunks that cover a box in EPSG:4326 degrees. It rewrites `spatial:shape` and `spatial:transform` for the cropped grid. It raises `ValueError` when a corner of the crop is off the Earth disk.
 
 ### Scan checks
 
-- **Grid and encoding.** Every scan in a cube must have the same `proj` and `spatial` attributes, and the same chunks, data type, fill value, codecs and CF scaling on each pixel variable. A scan that differs raises `EncodingMismatch`. NOAA changes these over the life of a satellite, so one satellite can need more than one cube.
-- **Aborted scans.** A scan with equal start and end stamps and only fill values is skipped.
-- **Missing variables.** A scan that lacks a variable of the layout gets a stand-in with no chunk references. A read of the stand-in returns the fill value.
-- **Appends.** `store.write` refuses an append whose signature differs from the store, or that adds or drops a variable along `time`.
+- **Grid and encoding:** every scan in a cube shares the `proj` and `spatial` root attributes. Each pixel variable keeps one encoding across the scans: its chunks, data type, fill value, codecs, and CF scaling. A scan that differs raises `EncodingMismatch`. NOAA changes these over the life of a satellite, so one satellite can need more than one cube.
+- **Aborted scans:** `build_cube` skips a scan with equal start and end stamps and only fill values.
+- **Missing variables:** a scan that lacks a variable of the layout gets a stand-in with no chunk references. A read of the stand-in returns the fill value.
+- **Appends:** `store.write` refuses an append whose signature differs from the store, or that adds or drops a variable along `time`.
 
 `build_cube` returns `None` when no scan in the batch is usable. It returns a `VirtualCube` otherwise. `VirtualCube.scan_modes` holds the `timeline_id` and `scene_id` of each scan, in the order of `time`. `cadence.time_step` takes them and gives the nominal step as an ISO 8601 duration.
 
@@ -121,4 +121,4 @@ The cube's root attributes are the GeoZarr conventions only, written with `zarr-
 
 ## Errors
 
-The package raises `ValueError` and its subclasses for bad input and for scans that cannot join a cube. It does not depend on pystac.
+The package raises `ValueError` and its subclasses for bad input and for scans that cannot join a cube. Its dependencies exclude pystac.
