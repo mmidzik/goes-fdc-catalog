@@ -168,7 +168,12 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
             "Fire mask, fire radiative power, temperature, area and data quality for the GOES-18 "
             "CONUS scene, about every 5 minutes, as a virtual Zarr cube. The cube holds byte-range "
             "references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is "
-            "copied. NOAA produces the data. This collection is a mirror."
+            "copied. NOAA produces the data. This collection is a mirror. "
+            # The dates come from the store, so a rebuild that extends the cube
+            # updates them. Drop this sentence when the cube holds the full record.
+            f"It is a demo that covers only the scans from {info['start'][:10]} to "
+            f"{info['end'][:10]} (UTC), a short part of the GOES-18 record. The time "
+            "range may be extended."
         ),
         "license": "CC0-1.0",
         "keywords": ["GOES-18", "ABI", "fire", "FDC", "geostationary", "Zarr"],
