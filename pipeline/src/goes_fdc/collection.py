@@ -165,15 +165,16 @@ def collection_json(info: dict, base: str, bbox: list[float], files: dict[str, d
         "id": COLLECTION,
         "title": "GOES-18 ABI L2 Fire/Hot Spot Characterization, CONUS (virtual Zarr)",
         "description": (
+            # The dates come from the store, so a rebuild that extends the cube
+            # updates them. Drop these two sentences when the cube is no longer a
+            # demo for the January 2025 fires.
+            "A demo for the Palisades and Eaton fires near Los Angeles in January 2025. "
+            f"It covers only the scans from {info['start'][:10]} to {info['end'][:10]} (UTC), "
+            "a short part of the GOES-18 record, and the time range may be extended. "
             "Fire mask, fire radiative power, temperature, area and data quality for the GOES-18 "
             "CONUS scene, about every 5 minutes, as a virtual Zarr cube. The cube holds byte-range "
             "references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is "
-            "copied. NOAA produces the data. This collection is a mirror. "
-            # The dates come from the store, so a rebuild that extends the cube
-            # updates them. Drop this sentence when the cube holds the full record.
-            f"It is a demo that covers only the scans from {info['start'][:10]} to "
-            f"{info['end'][:10]} (UTC), a short part of the GOES-18 record. The time "
-            "range may be extended."
+            "copied. NOAA produces the data. This collection is a mirror."
         ),
         "license": "CC0-1.0",
         "keywords": ["GOES-18", "ABI", "fire", "FDC", "geostationary", "Zarr"],
