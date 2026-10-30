@@ -12,7 +12,7 @@
   ],
   "id": "goes-18-fdcc",
   "title": "GOES-18 ABI L2 Fire/Hot Spot Characterization, CONUS (virtual Zarr)",
-  "description": "Fire mask, fire radiative power, temperature, area and data quality for the GOES-18 CONUS scene, about every 5 minutes, as a virtual Zarr cube. The cube holds byte-range references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is copied. NOAA produces the data. This collection is a mirror.",
+  "description": "Fire mask, fire radiative power, temperature, area and data quality for the GOES-18 CONUS scene, about every 5 minutes, as a virtual Zarr cube. The cube holds byte-range references into NOAA's ABI-L2-FDCC netCDF files in s3://noaa-goes18. No pixel data is copied. NOAA produces the data. This collection is a mirror. It is a demo that holds only the scans from 2025-01-07 to 2025-01-20 (UTC), not the full GOES-18 record. The time range will be extended.",
   "license": "CC0-1.0",
   "keywords": [
     "GOES-18",
@@ -71,7 +71,7 @@
       2000
     ]
   },
-  "updated": "2026-10-30T09:37:16Z",
+  "updated": "2026-10-30T10:12:48Z",
   "cube:dimensions": {
     "time": {
       "type": "temporal",

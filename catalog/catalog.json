@@ -6,7 +6,7 @@
   ],
   "id": "goes-fdc",
   "title": "GOES ABI Fire/Hot Spot Characterization",
-  "description": "Virtual Zarr views of NOAA's GOES ABI Level 2 Fire/Hot Spot Characterization (FDC) product, read from the netCDF files in NOAA's public noaa-goes* buckets. Each collection is one satellite and one scan sector. The first is GOES-18 CONUS. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data.",
+  "description": "Virtual Zarr views of NOAA's GOES ABI Level 2 Fire/Hot Spot Characterization (FDC) product, read from the netCDF files in NOAA's public noaa-goes* buckets. Each collection is one satellite and one scan sector. The first is GOES-18 CONUS, a demo that holds a short time range, not the full record. NOAA produces the data. This catalog is a mirror that holds references and metadata, not pixel data.",
   "links": [
     {
       "rel": "root",

@@ -1,7 +1,9 @@
 # Fire/hot spot characterization from GOES-18 (virtual Zarr)
 
 A virtual Zarr cube of GOES-18 CONUS Fire/Hot Spot Characterization scans, with
-its time extent in the collection's `extent`. The cube holds byte-range references
+its time extent in the collection's `extent`. The cube is a demo. It holds a
+short time range, not the full GOES-18 record, and the time range will be
+extended. The cube holds byte-range references
 into NOAA's `ABI-L2-FDCC` netCDF files in the public `noaa-goes18` bucket and
 copies no pixel data. The variables, the fire mask and quality codes, and the
 grid are described in the [catalog README](../README.md).

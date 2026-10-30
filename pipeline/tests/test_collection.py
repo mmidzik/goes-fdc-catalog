@@ -112,3 +112,9 @@ def test_render_nodata_is_the_render_variable_fill_value():
     assert c["renders"]["frp"]["nodata"] == -9
     assert c["summaries"]["gsd"] == [2000]
 
+
+
+def test_description_states_the_demo_dates_from_the_store():
+    c = collection_json(INFO, BASE, [0, 0, 1, 1], FILES)
+    assert "from 2025-01-07 to 2025-01-07 (UTC)" in c["description"]
+    assert "not the full GOES-18 record" in c["description"]
