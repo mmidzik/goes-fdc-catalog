@@ -37,7 +37,7 @@ uv run goes-fdc build --help
 
 Commit `uv.lock`. Never commit `.venv/` or anything under `local/`.
 
-`packages/goes-virtual/` is a separate uv project with its own `uv.lock`. Other projects pin it by git tag, so keep its interface stable and its gates green:
+`packages/goes-virtual/` is a separate uv project with its own `uv.lock`. Other projects pin it by git tag. Do not break its public functions in a minor release, and run its gates before each push:
 
 ```bash
 cd packages/goes-virtual
