@@ -26,7 +26,7 @@ It sums positive fire radiative power over the Palisades fire:
 import json, urllib.request
 import icechunk, pyproj, xarray as xr
 
-COLLECTION = "https://data.source.coop/<ACCOUNT>/goes-fdc/goes-18-fdcc/collection.json"
+COLLECTION = "https://data.source.coop/mmidzik/goes-fdc/goes-18-fdcc/collection.json"
 asset = json.load(urllib.request.urlopen(COLLECTION))["assets"]["icechunk"]
 frp = next(b for b in asset["bands"] if b["description"].lower() == "fire radiative power")
 

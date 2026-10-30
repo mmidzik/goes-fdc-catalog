@@ -1,7 +1,7 @@
 """Write the STAC collection for a built store.
 
     uv run python -m goes_fdc.collection \\
-        --public-base https://data.source.coop/<ACCOUNT>/goes-fdc
+        --public-base https://data.source.coop/mmidzik/goes-fdc
 
 Reads extent, grid, variables and projection from the store, so the metadata
 cannot drift from the data. The store is built in place under data_dir, so

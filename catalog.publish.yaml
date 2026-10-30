@@ -3,16 +3,15 @@
 # Everything under publish_dir is synced 1:1 to write_prefix. Data files are
 # never placed under publish_dir, so they cannot be published by accident.
 #
-# The target is Maya Midzik's personal Source Cooperative account. <ACCOUNT>
-# is a placeholder until the account name is set. tools/publish.py runs a dry
-# run with it and refuses --confirm.
+# The target is the goes-fdc product in Maya Midzik's personal Source
+# Cooperative account, mmidzik.
 
 # The S3 URI uploads are written to. Copy it from your storage provider.
-write_prefix: s3://us-west-2.opendata.source.coop/<ACCOUNT>/goes-fdc
+write_prefix: s3://us-west-2.opendata.source.coop/mmidzik/goes-fdc
 
 # The public base URL that serves write_prefix. Every href in the catalog is
 # built from this, so it goes in the STAC JSON and write_prefix does not.
-public_base: https://data.source.coop/<ACCOUNT>/goes-fdc
+public_base: https://data.source.coop/mmidzik/goes-fdc
 
 region: us-west-2
 
