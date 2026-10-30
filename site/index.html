@@ -4,6 +4,17 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>GOES ABI Fire Detections: Virtual Zarr Infra</title>
+<meta name="description" content="GOES-18 fire detections during the January 2025 Los Angeles fires, read from a virtual Zarr cube built with VirtualiZarr, Icechunk and Portolan.">
+<!-- Link previews. og:image must be an absolute URL. -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="GOES ABI Fire Detections: Virtual Zarr Infra">
+<meta property="og:description" content="GOES-18 fire detections during the January 2025 Los Angeles fires, read from a virtual Zarr cube built with VirtualiZarr, Icechunk and Portolan.">
+<meta property="og:url" content="https://mmidzik.github.io/goes-fdc-catalog/">
+<meta property="og:image" content="https://mmidzik.github.io/goes-fdc-catalog/og-preview.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Map of the Palisades and Eaton fire pixels near Los Angeles on 8 January 2025, above a timeline of fire radiative power.">
+<meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
 <style>
   :root {
@@ -42,8 +53,12 @@
     <div class="stats"><span>scan</span> <b id="scan"></b> &nbsp; <span>FRP over California</span> <b id="frp"></b></div>
   </div>
   <canvas id="strip" tabindex="0" aria-label="Timeline. Drag or use the arrow keys to change the scan."></canvas>
-  <p class="foot">Data: NOAA GOES-18 ABI L2 Fire/Hot Spot Characterization. The fire pixels were extracted from the
-    <a href="https://github.com/mmidzik/goes-fdc-catalog">goes-fdc</a> virtual Zarr cube by a build step and stored next to this page as
+  <p class="foot">
+    <a href="https://browser.portolan-sdi.org/#/external/data.source.coop/mmidzik/goes-fdc/catalog.json">Catalog</a> ·
+    <a href="https://source.coop/mmidzik/goes-fdc">Source Cooperative</a> ·
+    <a href="https://github.com/mmidzik/goes-fdc-catalog">Code</a><br>
+    Data: NOAA GOES-18 ABI L2 Fire/Hot Spot Characterization. The fire pixels were extracted from the
+    <a href="https://browser.portolan-sdi.org/#/external/data.source.coop/mmidzik/goes-fdc/catalog.json">goes-fdc</a> virtual Zarr cube by a build step and stored next to this page as
     <a href="fires.zarr/zarr.json">fires.zarr</a>, a Zarr v3 store in EPSG:4326 with one chunk per scan.</p>
 </div>
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
@@ -107,7 +122,7 @@ const map = new maplibregl.Map({
     layers: [
       // Grey and dim the OSM tiles so that the fire pixels stand out.
       { id: "basemap", type: "raster", source: "basemap",
-        paint: { "raster-saturation": -1, "raster-contrast": -0.2, "raster-brightness-max": 0.32 } },
+        paint: { "raster-saturation": -1, "raster-contrast": 0, "raster-brightness-max": 0.45 } },
       // The area of the store. GOES-18 scans all of it every five minutes.
       { id: "extent", type: "line", source: "extent", paint: { "line-color": "#ff9a3c", "line-opacity": 0.5, "line-dasharray": [2, 2] } },
       { id: "fire", type: "raster", source: "fire", paint: { "raster-resampling": "nearest", "raster-fade-duration": 0 } },
