@@ -13,7 +13,11 @@ from datetime import datetime, timedelta, timezone
 from functools import partial
 from pathlib import Path
 
-from . import collection, keys, store, virtualize
+from goes_virtual import listing, virtualize
+from goes_virtual import store as cube_store
+from goes_virtual.scan import BUCKETS
+
+from . import collection, store
 
 # One Icechunk commit per UTC day, about 288 CONUS scans. Worker processes list
 # and virtualize days ahead of the commit. One process commits the days in time
@@ -68,15 +72,17 @@ def virtualize_day(lo: datetime, hi: datetime, *, satellite: str, product: str,
     Returns the number of new scans, the scans that the cube holds, and the
     cube. The cube is None when no scan is new or usable.
     """
-    scans = keys.list_scans(satellite, product, lo, hi)
+    scans = listing.list_scans(satellite, product, lo, hi)
     if cutoff is not None:
         scans = [s for s in scans if s.start > cutoff]
     if not scans:
         return 0, [], None
     log.info("%s: listed %d scans", f"{lo:%F}", len(scans))
-    kept, cube = virtualize.build_cube(scans, workers=workers)
+    cube = virtualize.build_cube([s.ref() for s in scans], workers=workers)
     log.info("%s: virtualized", f"{lo:%F}")
-    return len(scans), kept, cube
+    if cube is None:
+        return len(scans), [], None
+    return len(scans), cube.scans, cube.dataset
 
 
 def in_order(pool: Executor, windows: Iterator[tuple[datetime, datetime]],
@@ -131,7 +137,7 @@ def build(args: argparse.Namespace) -> None:
     public_base = args.public_base or default_public_base()
     link = collection.collection_url(public_base) if public_base else None
     repo = store.open_repo(args.store, args.satellite)
-    seen = store.last_time(repo)
+    seen = cube_store.last_time(repo)
     cutoff = None
     if seen is not None:
         cutoff = datetime.fromtimestamp(seen.astype("datetime64[s]").astype(int), timezone.utc)
@@ -153,7 +159,7 @@ def build(args: argparse.Namespace) -> None:
                 if cube is None:
                     log.info("%s: no usable scans", f"{lo:%F}")
                     continue
-                snap = store.append(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}", link)
+                snap = cube_store.write(repo, cube, f"{scans[0].start:%FT%TZ} to {scans[-1].start:%FT%TZ}", link)
                 log.info("%s: committed %s", f"{lo:%F}", snap)
                 total += len(scans)
         except BaseException:
@@ -166,7 +172,7 @@ def main() -> None:
     p = argparse.ArgumentParser(prog="goes-fdc", description=__doc__)
     sub = p.add_subparsers(required=True)
     b = sub.add_parser("build", help="virtualize a time window and append it to the store")
-    b.add_argument("--satellite", default="G18", choices=sorted(keys.BUCKETS))
+    b.add_argument("--satellite", default="G18", choices=sorted(BUCKETS))
     b.add_argument("--product", default="ABI-L2-FDCC")
     b.add_argument("--start", required=True, help="UTC, ISO 8601, e.g. 2025-01-07T00:00")
     b.add_argument("--end", required=True, help="UTC, exclusive")

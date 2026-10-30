@@ -5,14 +5,14 @@ description = "Pipeline that builds the GOES ABI FDC virtual Zarr Portolan catal
 requires-python = ">=3.12"
 license = "Apache-2.0"
 dependencies = [
-    "virtualizarr[hdf]",
+    "goes-virtual",
     "icechunk",
-    "obstore",
     "xarray",
-    "h5netcdf",
     "pyproj>=3.8.0",
-    "zarr-cm>=0.5.0",
 ]
+
+[tool.uv.sources]
+goes-virtual = { path = "packages/goes-virtual", editable = true }
 
 [project.scripts]
 goes-fdc = "goes_fdc.cli:main"
@@ -23,7 +23,6 @@ dev = [
     "stac-check",
     "pyflakes",
     "pytest",
-    "geozarr-toolkit>=0.1.2",
     "rioxarray>=0.23.0",
 ]
 examples = [
