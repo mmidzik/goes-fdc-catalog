@@ -654,37 +654,18 @@ wheels = [
 ]
 
 [[package]]
-name = "geozarr-toolkit"
-version = "0.1.2"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "pydantic" },
-    { name = "pyproj" },
-    { name = "structlog" },
-    { name = "zarr" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/96/00/eb0acfacf70c23c26ec84730234657279645be24de289de1a865fcad8a7e/geozarr_toolkit-0.1.2.tar.gz", hash = "sha256:04b4196245210bfc854051729d0c3a92865bc47cf258f70227ae39a5ff40576b", size = 26324, upload-time = "2026-04-01T01:45:03.528Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/6d/2b/fb54fdbad8041ca7ffa8332b29afd3697580c8884656540b7ab6a8c56096/geozarr_toolkit-0.1.2-py3-none-any.whl", hash = "sha256:6d4317b791da7fcb19fce9df345f8f9ee3a1a822eb3bb3aad448ec41b73b526e", size = 19719, upload-time = "2026-04-01T01:45:02.146Z" },
-]
-
-[[package]]
 name = "goes-fdc-catalog"
 version = "0.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "h5netcdf" },
+    { name = "goes-virtual" },
     { name = "icechunk" },
-    { name = "obstore" },
     { name = "pyproj" },
-    { name = "virtualizarr", extra = ["hdf"] },
     { name = "xarray" },
-    { name = "zarr-cm" },
 ]
 
 [package.dev-dependencies]
 dev = [
-    { name = "geozarr-toolkit" },
     { name = "pyflakes" },
     { name = "pytest" },
     { name = "rashid" },
@@ -709,18 +690,14 @@ viz = [
 
 [package.metadata]
 requires-dist = [
-    { name = "h5netcdf" },
+    { name = "goes-virtual", editable = "packages/goes-virtual" },
     { name = "icechunk" },
-    { name = "obstore" },
     { name = "pyproj", specifier = ">=3.8.0" },
-    { name = "virtualizarr", extras = ["hdf"] },
     { name = "xarray" },
-    { name = "zarr-cm", specifier = ">=0.5.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "geozarr-toolkit", specifier = ">=0.1.2" },
     { name = "pyflakes" },
     { name = "pytest" },
     { name = "rashid", specifier = ">=0.1.8,<0.2.0" },
@@ -738,6 +715,45 @@ examples = [
 ]
 upload = [{ name = "boto3", specifier = ">=1.43.116" }]
 viz = [{ name = "matplotlib", specifier = ">=3.11.2" }]
+
+[[package]]
+name = "goes-virtual"
+version = "0.1.0"
+source = { editable = "packages/goes-virtual" }
+dependencies = [
+    { name = "h5netcdf" },
+    { name = "icechunk" },
+    { name = "numpy" },
+    { name = "obspec-utils" },
+    { name = "obstore" },
+    { name = "pyproj" },
+    { name = "virtualizarr", extra = ["hdf"] },
+    { name = "xarray" },
+    { name = "zarr" },
+    { name = "zarr-cm" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "h5netcdf", specifier = ">=1.8.1" },
+    { name = "icechunk", specifier = ">=2.3" },
+    { name = "numpy", specifier = ">=2" },
+    { name = "obspec-utils", specifier = ">=0.9" },
+    { name = "obstore", specifier = ">=0.11" },
+    { name = "pyproj", specifier = ">=3.8" },
+    { name = "virtualizarr", extras = ["hdf"], specifier = ">=2.8" },
+    { name = "xarray", specifier = ">=2025.6.1" },
+    { name = "zarr", specifier = ">=3.4" },
+    { name = "zarr-cm", specifier = ">=0.5.0" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "geozarr-toolkit", specifier = ">=0.1.2" },
+    { name = "mypy", specifier = ">=2.4.0" },
+    { name = "pytest", specifier = ">=8" },
+    { name = "ruff", specifier = ">=0.14" },
+]
 
 [[package]]
 name = "google-crc32c"
@@ -3034,15 +3050,6 @@ wheels = [
 ]
 
 [[package]]
-name = "structlog"
-version = "26.1.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/5e/89/b4a0bcfdf4f71a3dea31379f095929613d7e4528a0996bca6aa964cd0dca/structlog-26.1.0.tar.gz", hash = "sha256:f63a716cbd1b1291cf7661de7794b455acfa4c43c5bcf1630e6ad5ddc1adb3b7", size = 1459881, upload-time = "2026-06-06T07:33:39.348Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a9/18/489c97b834dfff9cf2fc2507cede4bcd4b11e67f84bc462acd1992496f86/structlog-26.1.0-py3-none-any.whl", hash = "sha256:e081a26d6c373e6d201eca24eede26d8ffab07f88f477822e679183428d3d91e", size = 73764, upload-time = "2026-06-06T07:33:38.046Z" },
-]
-
-[[package]]
 name = "tinycss2"
 version = "1.5.1"
 source = { registry = "https://pypi.org/simple" }
@@ -3271,7 +3278,7 @@ wheels = [
 
 [[package]]
 name = "virtualizarr"
-version = "2.7.3"
+version = "2.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numcodecs" },
@@ -3284,9 +3291,9 @@ dependencies = [
     { name = "xarray" },
     { name = "zarr" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/36/2a/cb2d364594631236083d86142ac72103a63241717ec2de01920340d08293/virtualizarr-2.7.3.tar.gz", hash = "sha256:3708ecedaf9c8580e78f8435b3882b95cf02a32c94a052da7afc024da2833ba4", size = 851130, upload-time = "2026-08-07T15:04:10.495Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/39/5b/afea95b845acdd17f324a753200a0b8b59d8f2548ff3b5c29fa10817a51d/virtualizarr-2.8.0.tar.gz", hash = "sha256:b630dcb8684dbc8e2ad36126a42ee0d67a7cddbfb8e542c1ff9e90f486c159b2", size = 917965, upload-time = "2026-10-14T21:57:59.244Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a0/f3/6c9aa0140d89b831e59429efb3bfb5b4f9cf314158e65391fdb9dd52a6ad/virtualizarr-2.7.3-py3-none-any.whl", hash = "sha256:1f935f54b07bf867516b36b559bfeefcaa78f2b47537c99d8ca4d770ec7bce8c", size = 756396, upload-time = "2026-08-07T15:04:08.623Z" },
+    { url = "https://files.pythonhosted.org/packages/d0/24/e77f17a9fe6d43162403cc73bbdbd03691da8689f1c90e91aa30a6235bf5/virtualizarr-2.8.0-py3-none-any.whl", hash = "sha256:beaa972560095e1201c9f0ba238b09ff1d9c49f902f7261733561e0c70b8ba75", size = 817358, upload-time = "2026-10-14T21:57:57.383Z" },
 ]
 
 [package.optional-dependencies]

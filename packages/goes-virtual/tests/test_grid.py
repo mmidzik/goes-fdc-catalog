@@ -3,7 +3,7 @@ import pyproj
 import pytest
 from zarr_cm import license, proj, spatial, stac
 
-from goes_fdc import grid
+from goes_virtual import grid
 
 # The CF attributes of goes_imager_projection in a GOES-18 FDCC file.
 PROJECTION = {
@@ -83,8 +83,9 @@ def test_a_collection_link_added_later_matches_one_built_in():
     built_in = grid.root_attributes(PROJECTION, X, Y, url)
     by_name = lambda attrs: sorted(attrs["zarr_conventions"], key=lambda c: c["name"])  # noqa: E731
     assert by_name(later) == by_name(built_in)
-    assert {k: v for k, v in later.items() if k != "zarr_conventions"} == \
-        {k: v for k, v in built_in.items() if k != "zarr_conventions"}
+    assert {k: v for k, v in later.items() if k != "zarr_conventions"} == {
+        k: v for k, v in built_in.items() if k != "zarr_conventions"
+    }
 
 
 def test_grid_facts_need_the_conventions():
@@ -92,3 +93,71 @@ def test_grid_facts_need_the_conventions():
     assert set(grid.grid_facts(attrs)) == set(grid.GRID_KEYS)
     with pytest.raises(KeyError, match="proj:wkt2"):
         grid.grid_facts({"goes_fdc:signature": "{}"})
+
+
+# The Palisades fire area, west, south, east, north in degrees.
+PALISADES = (-118.7, 34.0, -118.4, 34.2)
+
+
+def test_crop_window_covers_the_box_on_whole_source_chunks(cube_at):
+    from conftest import CHUNK, SIZE
+
+    cube = cube_at("2025-01-08T03:05")
+    window = grid.crop_window(cube, PALISADES)
+    for axis in ("x", "y"):
+        assert window[axis].start % CHUNK == 0
+        assert window[axis].stop % CHUNK == 0 or window[axis].stop == SIZE
+        assert window[axis].stop - window[axis].start <= 2 * CHUNK
+
+    # The pixel centres in the window bracket the box on both axes.
+    h = PROJECTION["perspective_point_height"]
+    lon, lat = np.meshgrid([PALISADES[0], PALISADES[2]], [PALISADES[1], PALISADES[3]])
+    x_m, y_m = pyproj.Transformer.from_crs(
+        "EPSG:4326", grid.cube_crs(cube), always_xy=True
+    ).transform(lon.ravel(), lat.ravel())
+    xs = cube["x"].values[window["x"]] * h
+    ys = cube["y"].values[window["y"]] * h
+    assert xs.min() <= x_m.min() and xs.max() >= x_m.max()
+    assert ys.min() <= y_m.min() and ys.max() >= y_m.max()
+
+
+def test_crop_rewrites_the_spatial_attributes(cube_at):
+    cube = cube_at("2025-01-08T03:05")
+    cropped = grid.crop(cube, PALISADES)
+    x, y = cropped["x"].values, cropped["y"].values
+    assert cropped.attrs["spatial:shape"] == [y.size, x.size]
+    assert cropped.attrs["spatial:transform"] == grid.transform(PROJECTION, x, y)
+    assert cropped.attrs["proj:wkt2"] == cube.attrs["proj:wkt2"]
+    assert cropped["Power"].shape == (1, y.size, x.size)
+    assert "goes_imager_projection" in cropped.variables
+    spatial.validate(cropped.attrs)
+
+
+def test_a_box_off_the_disk_is_refused(cube_at):
+    with pytest.raises(ValueError, match="Earth disk"):
+        grid.crop_window(cube_at("2025-01-08T03:05"), (10.0, 40.0, 11.0, 41.0))
+
+
+def test_edges_are_the_outer_pixel_edges():
+    h = PROJECTION["perspective_point_height"]
+    west, south, east, north = grid.edges_m(PROJECTION, X, Y)
+    assert west == pytest.approx(X[0] * h - STEP * h / 2)
+    assert east == pytest.approx(X[-1] * h + STEP * h / 2)
+    assert north == pytest.approx(Y[0] * h + STEP * h / 2)
+    assert south == pytest.approx(Y[-1] * h - STEP * h / 2)
+
+
+def test_a_box_on_the_disk_but_off_the_cube_is_refused(cube_at):
+    # The west part of the disk does not hold Palisades.
+    from conftest import CHUNK
+
+    west = cube_at("2025-01-08T03:05").isel(x=slice(0, 4 * CHUNK))
+    with pytest.raises(ValueError, match="not inside the grid"):
+        grid.crop_window(west, PALISADES)
+
+
+def test_a_box_across_the_antimeridian_stays_narrow(cube_at):
+    from conftest import CHUNK
+
+    window = grid.crop_window(cube_at("2025-01-08T03:05"), (178.0, 50.0, -178.0, 52.0))
+    assert window["x"].stop - window["x"].start <= 2 * CHUNK

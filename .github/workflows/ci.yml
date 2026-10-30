@@ -43,5 +43,16 @@ jobs:
           CI_LIGHT: "1"
         run: uv run python tests/run_all.py
 
+      # The goes-virtual package is its own uv project with its own lock file.
+      # Its gates are stricter than the pipeline's: ruff and mypy strict.
+      - name: goes-virtual gates
+        working-directory: packages/goes-virtual
+        run: |
+          uv sync --frozen
+          uv run ruff check
+          uv run ruff format --check
+          uv run mypy
+          uv run pytest
+
       - name: Audit the workflows
         run: uvx zizmor@1.31.1 --offline .github/workflows
