@@ -100,7 +100,8 @@ def main() -> None:
     parser.add_argument("out", type=Path, help="site directory to write")
     out = parser.parse_args().out
     out.mkdir(parents=True, exist_ok=True)
-    shutil.copy(Path(__file__).with_name("index.html"), out / "index.html")
+    for name in ("index.html", "og-preview.png"):
+        shutil.copy(Path(__file__).with_name(name), out / name)
     store = out / "fires.zarr"
 
     collection = pystac.Catalog.from_file(CATALOG).get_child(COLLECTION)
