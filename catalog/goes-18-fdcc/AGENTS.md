@@ -1,98 +1,146 @@
 # AGENTS.md — GOES-18 ABI L2 FDCC (virtual Zarr)
 
 Guidance for AI agents and automated clients working with this collection.
+Every claim here is either quoted from a source or measured from the data.
 
-**One rule survives every edit to this file.** Every claim here is either quoted
-from a source or measured from the data. If you cannot point at where a fact
-came from, it does not belong in this file. An agent acting on an invented join
-key or an invented column name produces a confident wrong answer, and nothing
-downstream catches it.
+A virtual Zarr cube of NOAA's GOES-18 Fire/Hot Spot Characterization scans for
+the CONUS sector, one scan about every 5 minutes. Each pixel read is a Range
+request into NOAA's netCDF files. A scan is identified by its `time` value, and
+a pixel by `time`, `y` and `x`. NOAA's per-scan summary values share the `time` axis, so a per-scan value and
+a pixel array match on `time`.
 
-## What this collection holds
+Read variable names from the metadata, not from this file. In
+[`collection.json`](collection.json), `cube:variables` lists every variable with
+its dimensions, unit and description. The `icechunk` asset's `bands` gives each
+pixel variable's name, description, unit, data type and nodata value. The
+recipe below finds its variable by description.
 
-A virtual Zarr cube over 3,996 GOES-18 CONUS Fire/Hot Spot Characterization
-scans, 2025-01-07T00:02Z to 2025-01-20T23:57Z (measured from the `time`
-coordinate). Dimensions `time` (3996) × `y` (1500) × `x` (2500). The Icechunk tag
-`demo-2025-01` pins this snapshot. Variables `Mask`, `DQF`, `Power`, `Temp`,
-`Area`. Public root, provisional:
-`https://data.source.coop/<ACCOUNT>/goes-fdc/`.
+## Access
 
-The orbital slot recorded in the NOAA files read for this catalog (2025-01-07
-and 2025-01-08) is `GOES-West`. A satellite's slot can change over its life, so
-check the `orbital_slot` attribute in the file for the date you need.
+Open the `icechunk` asset with `icechunk` and `xarray`, and authorize NOAA's
+bucket as a virtual chunk container. Pass the asset's `xarray:open_kwargs` to
+`xarray.open_dataset`. This read takes every name and number from the metadata.
+It sums positive fire radiative power over the Palisades fire:
 
-## Source bucket
+```python
+import json, urllib.request
+import icechunk, pyproj, xarray as xr
 
-Measured on 2026-10-06 against `https://noaa-goes18.s3.amazonaws.com`:
+COLLECTION = "https://data.source.coop/<ACCOUNT>/goes-fdc/goes-18-fdcc/collection.json"
+asset = json.load(urllib.request.urlopen(COLLECTION))["assets"]["icechunk"]
+frp = next(b for b in asset["bands"] if b["description"].lower() == "fire radiative power")
 
-- Anonymous listing and Range requests work. A Range request returned `206`
-  and `Accept-Ranges: bytes`. The bucket CORS rule allows `*` for GET.
-- Keys are `ABI-L2-FDCC/<YYYY>/<DDD>/<HH>/<filename>`.
-- Filenames look like
-  `OR_ABI-L2-FDCC-M6_G18_s20250080301172_e20250080303545_c20250080304133.nc`.
-  The `s`, `e` and `c` stamps are start, end and creation: year, day of year,
-  hour, minute, second, tenths of a second.
+NOAA = "https://noaa-goes18.s3.amazonaws.com/"
+config = icechunk.RepositoryConfig.default()
+config.set_virtual_chunk_container(icechunk.VirtualChunkContainer(NOAA, icechunk.http_store()))
+credentials = icechunk.containers_credentials({NOAA: icechunk.Credentials.HttpAccess()})
+repo = icechunk.Repository.open(icechunk.http_storage(asset["href"]), config=config,
+                                authorize_virtual_chunk_access=credentials)
+ds = xr.open_dataset(repo.readonly_session(branch="main").store, **asset["xarray:open_kwargs"])
 
-## File layout (measured on the scan above)
+# Longitude and latitude to pixel indices, with proj:wkt2 and proj:transform.
+to_grid = pyproj.Transformer.from_crs("EPSG:4326", pyproj.CRS.from_wkt(asset["proj:wkt2"]), always_xy=True)
+a, _, c, _, e, f = asset["proj:transform"]
+xs, ys = to_grid.transform([-118.70, -118.45], [34.00, 34.15])
+cols = sorted(int((x - c) // a) for x in xs)
+rows = sorted(int((y - f) // e) for y in ys)
 
-| Variable | Shape | dtype | Chunks | Filter | Attributes |
-|---|---|---|---|---|---|
-| `Mask` | 1500 × 2500 | int16 | 250 × 250 | gzip + shuffle | `_FillValue` `-99` |
-| `DQF` | 1500 × 2500 | uint8 | 250 × 250 | gzip + shuffle | `_FillValue` 255 |
-| `Power` | 1500 × 2500 | float32 | 250 × 250 | gzip + shuffle | units MW, `_FillValue` `-9` |
-| `Temp` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units K, `scale_factor` 0.05493667, `add_offset` 400, `_FillValue` 65535 |
-| `Area` | 1500 × 2500 | uint16 | 250 × 250 | gzip + shuffle | units m2, `scale_factor` 60.98, `add_offset` 4000, `_FillValue` 65535 |
+scan = ds[frp["name"]].sel(time="2025-01-08T07:12", method="nearest")
+box = scan.isel(y=slice(rows[0], rows[1] + 1), x=slice(cols[0], cols[1] + 1))
+print(str(scan.time.values)[:19], box.shape, f"{float(box.where(box > 0).sum()):,.0f} {frp['unit']}")
+# 2025-01-08T07:12:35 (6, 9) 26,255 MW
+```
 
-Each file also contains a scalar `t` (seconds since 2000-01-01 12:00:00) and
-`time_bounds`. The `Mask` and `DQF` codes are in the `flag_values` and
-`flag_meanings` attributes, and the catalog `../README.md` tabulates them. Fire
-pixels are `Mask` codes 10 to 15 and 30 to 35 (measured from `flag_meanings` on
-the scan above).
+The output is measured with the store read from the local file system. The
+Source Cooperative URL is provisional and untested.
 
-## How to read it
+- Without the virtual chunk container, the open fails with "you need to
+  authorize the virtual chunk container".
+- `xarray:open_kwargs` sets `decode_coords="all"`, which makes the
+  `grid_mapping` variable a coordinate. rioxarray then finds the CRS. Without
+  it, `rio.crs` is `None` (measured).
+- `chunks={}` needs `dask`, which a plain read does not.
+- Each chunk covers one scan by 250 × 250 pixels. A time series at one pixel
+  reads one chunk per scan.
 
-One asset, `icechunk`, with a working recipe in `README.md`. All five variables
-of three sampled scans read back byte-identical to the raw netCDF from the local
-store. The Source Cooperative URL is untested.
+## Quirks
 
-- Every pixel read is a Range request to
-  `https://noaa-goes18.s3.amazonaws.com/ABI-L2-FDCC/...`. Opening the Icechunk
-  repo without authorizing that prefix fails.
-- Open with `consolidated=False`. The `chunks={}` argument needs `dask`, which
-  is not a requirement for reading.
+- **Scaled values decode to floats.** With the default decoding, a variable
+  with `scale_factor` and `add_offset` decodes to float64, and fill values
+  become NaN. A decoded value is never below that variable's `add_offset`.
+  Open with `mask_and_scale=False` to get NOAA's stored integers.
+- **Some nodata values are inside the number range.** Some `bands` nodata
+  values are negative numbers in a float or signed integer range. A sum that
+  does not mask them includes them, so exclude values at or below zero before
+  a sum of fire radiative power, as the recipe does.
+- **A fill value can mean a missing variable.** When a file has no array for a
+  pixel variable, the build adds an array with no chunk references for that
+  scan, so every read returns the fill value. When a file has no per-scan
+  value, the build stores the variable's fill value for that scan.
+- **Gaps along `time`.** NOAA's bucket can have no file for a scan, and the cube
+  then has no time step for it. Do not assume a fixed 5-minute spacing. A line
+  plot joins the two sides of a gap, which hides the gap.
+- **Time is mid-scan.** `time` comes from the time value in each NOAA file and
+  falls between the start and end stamps in the file name. When a file's time
+  value is not usable, `time` is the midpoint of those stamps.
+- **Reprocessing stops a read.** Each chunk read sends `If-Unmodified-Since`
+  with the time the reference was written. NOAA's bucket answers `412` for a
+  file modified after that time (measured), and Icechunk stops the read. It
+  does not compare bytes, so a re-upload of identical bytes also stops the
+  read. The error is:
 
-## Quirks that produce silently wrong answers
+  ```text
+  the checksum of the object owning the virtual chunk has changed
+  ```
 
-- **Raw integers.** Open with `mask_and_scale=False` to get NOAA's stored values.
-  With the default, `Temp` and `Area` decode to float64 through `scale_factor`
-  and `add_offset`, and fill values become NaN. Measured `Temp` scaling:
-  `scale_factor` 0.05493667, `add_offset` 400, so a decoded value is never below
-  400 K.
-- **Fill values.** `Power` uses `-9` and `Mask` uses `-99`. A sum over `Power`
-  without `where(Power > 0)` includes them. Measured over the box 118.70 W to
-  118.45 W, 34.00 N to 34.15 N at 2025-01-08T07:12Z: the sum of positive
-  `Power` is 26,255 MW.
-- **Not latitude and longitude.** `x` and `y` are ABI scan angles in radians on
-  the geostationary fixed grid (`grid_mapping` is `goes_imager_projection`). A
-  point-in-box filter on lat/lon needs the projection first. The collection's
-  `proj:wkt2` holds it.
-- **Time is mid-scan.** `time` comes from each file's `t` and falls between the
-  start and end stamps in the filename, for example 19:57:35 for a scan that
-  starts 19:56:17. When a file's `t` is not usable, `time` is the midpoint of
-  the start and end stamps in the filename instead.
-- **Gaps.** NOAA's bucket can have no file for a scan, and the cube then has no
-  time step for it. Do not assume a fixed 5-minute spacing along `time`. A line
-  plot joins the two sides of a gap, which hides it.
-- **Scene extent.** The collection bbox is NOAA's `geospatial_lat_lon_extent`
-  for this scene and crosses the antimeridian (west 175.6, east `-89.6`).
-- **Reprocessing.** Each chunk read sends `If-Unmodified-Since` with the time the
-  reference was written. NOAA's bucket answers `412` for a file modified after
-  that time (measured with a date before a file's `Last-Modified`). Icechunk
-  then stops with `the checksum of the object owning the virtual chunk has changed`. It does not compare bytes, so a re-upload of identical bytes also
-  stops the read.
+## Coordinate reference system
+
+The CRS is the GOES-18 geostationary projection, sweep axis `x`, in
+`proj:wkt2`. It has no EPSG code, so `proj:code` is null. What follows from it:
+
+- `x` and `y` are scan angles in radians, not metres and not degrees. The CRS
+  is in metres, which are the scan angle times the `perspective_point_height`
+  of the `grid_mapping` variable.
+- `proj:transform`, and `spatial:transform` in the store, are in metres. Use
+  them to convert a longitude and latitude to a pixel, as the recipe does.
+  With them and `proj:wkt2`, `pyproj` places the corner and centre pixels
+  within 0.001 m of NOAA's published fixed-grid equations (measured).
+- rioxarray computes `rio.transform()` from `x` and `y`, so its transform is in
+  radians (measured). Do not combine it with the metre CRS.
+- A pixel is not a fixed ground size. It is about 2.0 km by 2.1 km at the
+  south edge of the sector below the satellite, and about 4.5 km by 7.5 km at
+  the northern corners (measured with `pyproj` from the transform). A pixel
+  count is not an area. NOAA's per-pixel fire area is in its own pixel
+  variable.
+- The collection `bbox` crosses the antimeridian. A longitude filter that
+  assumes west is less than east excludes the whole sector.
+- Web maps need a reprojection to EPSG:3857 with PROJ's geostationary
+  projection, `+proj=geos +sweep=x`.
+
+## Schema meaning
+
+- The fire mask gives each pixel one code. Fire pixels are codes 10 to 15 and
+  30 to 35 (from its `flag_meanings` attribute). The other codes mark no fire,
+  cloud, water, block-out zones and processing failures. The catalog
+  [README](../README.md#fire-mask-codes) tabulates them.
+- In the data quality flag, 0 marks a good fire pixel and 1 marks good
+  fire-free land. Codes 2 to 5 mark invalid pixels (from its `flag_meanings` attribute).
+- Fire temperature, radiative power and area exist only "for valid fire pixels
+  that satisfy specific criteria" (NOAA's `summary` attribute). Elsewhere they
+  hold the nodata value.
+- The per-scan summary values are NOAA's own counts and statistics for each
+  scan. They are not computed from the cube.
+
+## Related collections and provenance
+
+The catalog has one collection, so nothing joins across collections. The
+collection mirrors NOAA's `ABI-L2-FDCC` product in the `noaa-goes18` bucket,
+which NOAA and NESDIS produce. `goes-fdc build` in the
+[source repository](https://github.com/mmidzik/goes-fdc-catalog) builds the
+store from NOAA's file headers and copies no pixel data.
 
 ## Structure
 
 Assets and structural links resolve relative to the object that carries them.
-Catalogs here carry no `self` link, so a client tracks its own location. The
+Catalogs here have no `self` link, so a client tracks its own location. The
 data assets use absolute `https` hrefs built from the public base URL.

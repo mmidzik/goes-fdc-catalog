@@ -17,6 +17,7 @@ TESTS = [
     "test_publish.py",
     "test_upload_data.py",
     "test_stac_valid.py",
+    "test_agent_guides.py",
     "test_conformance.py",
 ]
 

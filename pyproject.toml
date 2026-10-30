@@ -11,6 +11,7 @@ dependencies = [
     "xarray",
     "h5netcdf",
     "pyproj>=3.8.0",
+    "zarr-cm>=0.5.0",
 ]
 
 [project.scripts]
@@ -22,6 +23,8 @@ dev = [
     "stac-check",
     "pyflakes",
     "pytest",
+    "geozarr-toolkit>=0.1.2",
+    "rioxarray>=0.23.0",
 ]
 examples = [
     "ipykernel>=7.4.0",

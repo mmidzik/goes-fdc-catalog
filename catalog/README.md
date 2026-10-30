@@ -7,9 +7,8 @@ fire, clear land, cloud, water and the pixels the algorithm could not process.
 The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
 
-> **Demo.** The catalog covers two weeks, 2025-01-07 to 2025-01-20 UTC, which
-> include the January 2025 Los Angeles fires, and the same pipeline extends the
-> cube in time.
+> **Demo.** The catalog is not published yet. The collection's `extent` gives
+> the time range of the cube, and the pipeline extends the cube in time.
 
 NOAA and NESDIS produce the data and remain the authoritative source. This
 catalog is a **mirror** of it.
@@ -18,8 +17,7 @@ catalog is a **mirror** of it.
 - **Browse the metadata**: TODO, needs the published STAC root
 - **Read the build**:
   [the repository on GitHub](https://github.com/mmidzik/goes-fdc-catalog)
-- **The collection**: the [goes-18-fdcc README](goes-18-fdcc/README.md) and its
-  [agent guide](goes-18-fdcc/AGENTS.md)
+- **The collection**: the [goes-18-fdcc README](goes-18-fdcc/README.md)
 
 ## What is here
 
@@ -31,8 +29,8 @@ product (FDC) for the GOES-18 CONUS sector.
 | Satellite  | GOES-18, GOES-West, at 137.0° W                                       |
 | Instrument | ABI                                                                   |
 | Product    | `ABI-L2-FDCC`, Level 2 Fire/Hot Spot Characterization, CONUS sector   |
-| Window     | 2025-01-07T00:02Z to 2025-01-20T23:57Z                                |
-| Scans      | 3,996, about one every 5 minutes, about 288 per day                   |
+| Time range | The collection's temporal `extent`                                    |
+| Scans      | About one every 5 minutes, about 288 per day                          |
 | Grid       | 1500 × 2500 pixels on the ABI geostationary fixed grid, 2 km at nadir |
 | Extent     | 14.6° N to 53.5° N, 175.6° E across the antimeridian to 89.6° W       |
 | Variables  | `Mask`, `DQF`, `Power`, `Temp`, `Area`                                |
@@ -41,6 +39,9 @@ The FDC algorithm uses the ABI 3.89 µm and 11.19 µm bands of each scan, with
 other bands for its cloud tests. For each pixel it assigns a fire mask code, and for some fire pixels it estimates the fire's radiative power,
 temperature and area. NOAA writes one netCDF file per scan. The cube stacks
 those files along `time` and reads them in place.
+
+The `gsd` of 2000 m in the collection is the pixel size at nadir. Pixels are
+larger toward the edges of the sector.
 
 The GOES-18 CONUS sector is sometimes called PACUS. The extent above is NOAA's
 `geospatial_lat_lon_extent` for the sector.
@@ -58,8 +59,15 @@ Measured from the file headers. Each variable is a `time` × `y` × `x` array.
 | `Area`   | Fire Area            | uint16  | m2    | 65535      | `scale_factor` 60.98, `add_offset` 4000     |
 
 `Temp` and `Area` are stored as scaled integers. Most readers apply the scaling
-and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md)
-says how to get the raw integers.
+and the fill value on read. The collection [agent guide](goes-18-fdcc/AGENTS.md#quirks) says how to get
+the raw integers.
+
+Each scan also has NOAA's own summary values, stored as variables along
+`time`. They include the number of fire pixels and the outlier counts. They
+also include the minimum, maximum, mean and standard deviation of fire
+temperature, area and radiative power. The
+collection has no statistics of its own, because they would change with every
+scan the cube gains.
 
 ### Fire mask codes
 
@@ -128,8 +136,8 @@ Every scan comes from the `ABI-L2-FDCC` prefix of the `noaa-goes18` bucket,
 listed in the
 [AWS Registry of Open Data](https://registry.opendata.aws/noaa-goes/). Nothing
 is resampled, reprojected, filtered or reclassified. The cube keeps NOAA's grid,
-chunks, compression, codes, scaling and fill values. The cube includes the five pixel variables and leaves out the per-scan summary
-values in the files.
+chunks, compression, codes, scaling and fill values. The cube includes the pixel
+variables and the per-scan summary values in the files.
 
 The methods are in the repository
 [design document](https://github.com/mmidzik/goes-fdc-catalog/blob/main/docs/architecture.md).
@@ -148,3 +156,9 @@ specification defers Zarr support until real Zarr datasets have been tested in
 catalogs
 ([portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132)).
 This catalog is one of those test cases.
+
+## Catalog structure
+
+Assets and structural links resolve relative to the object that carries them.
+Catalogs here have no `self` link, so a client tracks its own location. The
+data assets use absolute `https` hrefs built from the public base URL.

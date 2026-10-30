@@ -9,8 +9,9 @@ A Portolan catalog of NOAA's GOES ABI Fire/Hot Spot Characterization as virtual 
 | `README.md` | The repository overview, the main design choices, the pipeline, and how to work here. A short file. |
 | `docs/architecture.md` | Methods. It covers the source data, the build, the Zarr store, the catalog metadata, the measurements, and the Zarr findings. |
 | `catalog/README.md` | The data, for humans: variables, codes, coverage, license, provenance. Published. |
-| `catalog/AGENTS.md` | A short pointer for machine clients. Published. |
-| `catalog/goes-18-fdcc/README.md` and `AGENTS.md` | The read recipe, measured file layout, and the traps. Published. |
+| `catalog/AGENTS.md` | Pointers for machine clients. No facts of its own. Published. |
+| `catalog/goes-18-fdcc/README.md` | The read recipe, the store layout, the measured file layout, and the traps. Published. |
+| `catalog/goes-18-fdcc/AGENTS.md` | Pointers into the collection and its README, in reading order. No facts of its own. Published. |
 | `docs/conformance.md` | Validator findings and the accepted ones. |
 
 Put a new fact in the one file that owns it, and link to it from the others.
@@ -67,9 +68,31 @@ fires, why it is accepted, and the issue tracking its removal.
 
 ### Published agent guides
 
-Every claim in a `catalog/**/AGENTS.md` is either quoted from a source or
-measured from the data. An invented join key or column name produces a
+The agent guides follow Portolan's documentation best practices
+([documentation.md](https://github.com/portolan-sdi/portolan-spec/blob/main/specs/best-practices/documentation.md)).
+A README is for a person who decides whether to use the data. A collection
+`AGENTS.md` is for an agent that already uses it. It holds the access pattern,
+a tested read, the quirks, the coordinate system and what follows from it, the
+meaning of codes, and the provenance. Do not copy one file into the other.
+
+A `catalog/**/AGENTS.md` leaves out what the machine metadata already states:
+extents, counts and the license. A catalog-level `AGENTS.md` is a table of
+contents for the collection guides.
+
+Every claim in a published README or `AGENTS.md` is either quoted from a source
+or measured from the data. An invented join key or column name produces a
 confident wrong answer that nothing downstream catches.
+
+Variable names come from the catalog, not from a `catalog/**/AGENTS.md`. The
+collection's `cube:variables` and the asset's `bands` list them, and a guide
+tells the reader to read them there. A guide that repeats a name drifts when the
+store changes.
+
+Every published Markdown file under `catalog/` describes the store in general.
+Leave out a test build of the store, its scan count and its snapshot tag. A
+published store is rebuilt and appended to, so those facts go stale.
+
+`tests/test_agent_guides.py` checks both rules.
 
 ### The links back to this repository
 
