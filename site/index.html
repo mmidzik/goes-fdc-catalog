@@ -38,9 +38,9 @@
     <div class="stats"><span>scan</span> <b id="scan"></b> &nbsp; <span>FRP over California</span> <b id="frp"></b></div>
   </div>
   <canvas id="strip" tabindex="0" aria-label="Timeline. Drag or use the arrow keys to change the scan."></canvas>
-  <p class="foot">Data: NOAA GOES-18 ABI L2 Fire/Hot Spot Characterization, read from the
-    <a href="https://github.com/mmidzik/goes-fdc-catalog">goes-fdc</a> virtual Zarr cube.
-    This page reads <a href="fires.zarr/zarr.json">fires.zarr</a>, a Zarr v3 store in EPSG:4326 with one chunk per scan.</p>
+  <p class="foot">Data: NOAA GOES-18 ABI L2 Fire/Hot Spot Characterization. The fire pixels were extracted from the
+    <a href="https://github.com/mmidzik/goes-fdc-catalog">goes-fdc</a> virtual Zarr cube by a build step and stored next to this page as
+    <a href="fires.zarr/zarr.json">fires.zarr</a>, a Zarr v3 store in EPSG:4326 with one chunk per scan.</p>
 </div>
 <script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
 <script type="module">
