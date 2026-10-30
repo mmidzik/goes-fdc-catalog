@@ -26,10 +26,13 @@ dev = [
     "rioxarray>=0.23.0",
 ]
 examples = [
+    "contextily>=1.7.1",
+    "geopandas>=1.2.0",
     "ipykernel>=7.4.0",
     "matplotlib>=3.11.2",
     "nbconvert>=7.17.2",
     "pystac>=1.15.2",
+    "rioxarray>=0.23.0",
 ]
 upload = [
     "boto3>=1.43.116",
