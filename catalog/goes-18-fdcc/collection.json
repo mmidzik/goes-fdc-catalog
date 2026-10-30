@@ -152,19 +152,6 @@
       "unit": "K",
       "description": "Fire Temperature"
     },
-    "fire_radiative_power_outlier_pixel_count": {
-      "type": "data",
-      "dimensions": [
-        "time"
-      ],
-      "unit": "count",
-      "description": "Number of pixels with fire radiative power reported whose value is outside valid measurement range"
-    },
-    "geospatial_lat_lon_extent": {
-      "type": "auxiliary",
-      "dimensions": [],
-      "description": "Geospatial latitude and longitude references"
-    },
     "fire_area_outlier_pixel_count": {
       "type": "data",
       "dimensions": [
@@ -173,6 +160,14 @@
       "unit": "count",
       "description": "Number of pixels with fire area reported whose value is outside valid measurement range"
     },
+    "fire_radiative_power_outlier_pixel_count": {
+      "type": "data",
+      "dimensions": [
+        "time"
+      ],
+      "unit": "count",
+      "description": "Number of pixels with fire radiative power reported whose value is outside valid measurement range"
+    },
     "fire_temperature_outlier_pixel_count": {
       "type": "data",
       "dimensions": [
@@ -180,6 +175,11 @@
       ],
       "unit": "count",
       "description": "Number of pixels with fire temperature reported whose value is outside valid measurement range"
+    },
+    "geospatial_lat_lon_extent": {
+      "type": "auxiliary",
+      "dimensions": [],
+      "description": "Geospatial latitude and longitude references"
     },
     "goes_imager_projection": {
       "type": "auxiliary",
@@ -202,13 +202,21 @@
       "unit": "MW",
       "description": "Maximum fire radiative power"
     },
-    "minimum_fire_area": {
+    "maximum_fire_temperature": {
+      "type": "data",
+      "dimensions": [
+        "time"
+      ],
+      "unit": "K",
+      "description": "Maximum fire temperature"
+    },
+    "mean_fire_area": {
       "type": "data",
       "dimensions": [
         "time"
       ],
       "unit": "m2",
-      "description": "Minimum fire area"
+      "description": "Mean fire area"
     },
     "mean_fire_radiative_power": {
       "type": "data",
@@ -218,30 +226,6 @@
       "unit": "MW",
       "description": "Mean fire radiative power"
     },
-    "maximum_fire_temperature": {
-      "type": "data",
-      "dimensions": [
-        "time"
-      ],
-      "unit": "K",
-      "description": "Maximum fire temperature"
-    },
-    "minimum_fire_radiative_power": {
-      "type": "data",
-      "dimensions": [
-        "time"
-      ],
-      "unit": "MW",
-      "description": "Minimum fire radiative power"
-    },
-    "percent_uncorrectable_L0_errors": {
-      "type": "data",
-      "dimensions": [
-        "time"
-      ],
-      "unit": "percent",
-      "description": "Percent data lost due to uncorrectable L0 errors"
-    },
     "mean_fire_temperature": {
       "type": "data",
       "dimensions": [
@@ -250,29 +234,21 @@
       "unit": "K",
       "description": "Mean fire temperature"
     },
-    "standard_deviation_fire_radiative_power": {
+    "minimum_fire_area": {
+      "type": "data",
+      "dimensions": [
+        "time"
+      ],
+      "unit": "m2",
+      "description": "Minimum fire area"
+    },
+    "minimum_fire_radiative_power": {
       "type": "data",
       "dimensions": [
         "time"
       ],
       "unit": "MW",
-      "description": "Standard deviation of fire radiative power values"
-    },
-    "standard_deviation_fire_area": {
-      "type": "data",
-      "dimensions": [
-        "time"
-      ],
-      "unit": "m2",
-      "description": "Standard deviation of fire area values"
-    },
-    "mean_fire_area": {
-      "type": "data",
-      "dimensions": [
-        "time"
-      ],
-      "unit": "m2",
-      "description": "Mean fire area"
+      "description": "Minimum fire radiative power"
     },
     "minimum_fire_temperature": {
       "type": "data",
@@ -290,6 +266,30 @@
       "unit": "percent",
       "description": "Percent data lost due to uncorrectable GRB errors"
     },
+    "percent_uncorrectable_L0_errors": {
+      "type": "data",
+      "dimensions": [
+        "time"
+      ],
+      "unit": "percent",
+      "description": "Percent data lost due to uncorrectable L0 errors"
+    },
+    "standard_deviation_fire_area": {
+      "type": "data",
+      "dimensions": [
+        "time"
+      ],
+      "unit": "m2",
+      "description": "Standard deviation of fire area values"
+    },
+    "standard_deviation_fire_radiative_power": {
+      "type": "data",
+      "dimensions": [
+        "time"
+      ],
+      "unit": "MW",
+      "description": "Standard deviation of fire radiative power values"
+    },
     "standard_deviation_fire_temperature": {
       "type": "data",
       "dimensions": [
@@ -298,13 +298,13 @@
       "unit": "K",
       "description": "Standard deviation of fire temperature values"
     },
-    "total_number_of_pixels_with_fire_temperature": {
+    "total_number_of_pixels_with_fire_area": {
       "type": "data",
       "dimensions": [
         "time"
       ],
       "unit": "count",
-      "description": "Total number of pixels with fire temperature reported"
+      "description": "Total number of pixels with fire area reported"
     },
     "total_number_of_pixels_with_fire_radiative_power": {
       "type": "data",
@@ -314,13 +314,13 @@
       "unit": "count",
       "description": "Total number of pixels with fire radiative power reported"
     },
-    "total_number_of_pixels_with_fire_area": {
+    "total_number_of_pixels_with_fire_temperature": {
       "type": "data",
       "dimensions": [
         "time"
       ],
       "unit": "count",
-      "description": "Total number of pixels with fire area reported"
+      "description": "Total number of pixels with fire temperature reported"
     },
     "total_number_of_pixels_with_fires_detected": {
       "type": "data",
