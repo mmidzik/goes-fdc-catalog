@@ -7,7 +7,7 @@ fire, clear land, cloud, water and the pixels the algorithm could not process.
 The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
 
-> **Demo.** The cube holds a short time range, not the full GOES-18 record. The
+> **Demo.** The cube covers only a short part of the GOES-18 record. The
 > collection's description and `extent` give the dates. The time range may be
 > extended.
 
