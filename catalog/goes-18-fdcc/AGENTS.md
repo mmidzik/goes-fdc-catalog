@@ -17,30 +17,32 @@ recipe below finds its variable by description.
 
 ## Access
 
-Open the `icechunk` asset with `icechunk` and `xarray`, and authorize NOAA's
-bucket as a virtual chunk container. Pass the asset's `xarray:open_kwargs` to
-`xarray.open_dataset`. This read takes every name and number from the metadata.
+Read the collection with `pystac`. Open the `icechunk` asset with `icechunk` and
+`xarray`, and authorize NOAA's bucket as a virtual chunk container. Open the
+store with `xarray.open_zarr`, and take `consolidated` from the asset's
+`zarr:consolidated`. This read takes every name and number from the metadata.
 It sums positive fire radiative power over the Palisades fire:
 
 ```python
-import json, urllib.request
-import icechunk, pyproj, xarray as xr
+import icechunk, pyproj, pystac, xarray as xr
 
 COLLECTION = "https://data.source.coop/mmidzik/goes-fdc/goes-18-fdcc/collection.json"
-asset = json.load(urllib.request.urlopen(COLLECTION))["assets"]["icechunk"]
-frp = next(b for b in asset["bands"] if b["description"].lower() == "fire radiative power")
+asset = pystac.Collection.from_file(COLLECTION).assets["icechunk"]
+meta = asset.extra_fields
+frp = next(b for b in meta["bands"] if b["description"].lower() == "fire radiative power")
 
 NOAA = "https://noaa-goes18.s3.amazonaws.com/"
 config = icechunk.RepositoryConfig.default()
 config.set_virtual_chunk_container(icechunk.VirtualChunkContainer(NOAA, icechunk.http_store()))
 credentials = icechunk.containers_credentials({NOAA: icechunk.Credentials.HttpAccess()})
-repo = icechunk.Repository.open(icechunk.http_storage(asset["href"]), config=config,
+repo = icechunk.Repository.open(icechunk.http_storage(asset.href), config=config,
                                 authorize_virtual_chunk_access=credentials)
-ds = xr.open_dataset(repo.readonly_session(branch="main").store, **asset["xarray:open_kwargs"])
+ds = xr.open_zarr(repo.readonly_session(branch="main").store,
+                  consolidated=meta["zarr:consolidated"], decode_coords="all")
 
 # Longitude and latitude to pixel indices, with proj:wkt2 and proj:transform.
-to_grid = pyproj.Transformer.from_crs("EPSG:4326", pyproj.CRS.from_wkt(asset["proj:wkt2"]), always_xy=True)
-a, _, c, _, e, f = asset["proj:transform"]
+to_grid = pyproj.Transformer.from_crs("EPSG:4326", pyproj.CRS.from_wkt(meta["proj:wkt2"]), always_xy=True)
+a, _, c, _, e, f = meta["proj:transform"]
 xs, ys = to_grid.transform([-118.70, -118.45], [34.00, 34.15])
 cols = sorted(int((x - c) // a) for x in xs)
 rows = sorted(int((y - f) // e) for y in ys)
@@ -51,14 +53,13 @@ print(str(scan.time.values)[:19], box.shape, f"{float(box.where(box > 0).sum()):
 # 2025-01-08T07:12:35 (6, 9) 26,255 MW
 ```
 
-The output is measured with the store read from the local file system. The
-Source Cooperative URL is provisional and untested.
+The output is measured against the Source Cooperative URL, in a clean
+environment with only `icechunk`, `pyproj`, `pystac`, `xarray` and `zarr`.
 
 - Without the virtual chunk container, the open fails with "you need to
   authorize the virtual chunk container".
-- `xarray:open_kwargs` sets `decode_coords="all"`, which makes the
-  `grid_mapping` variable a coordinate. rioxarray then finds the CRS. Without
-  it, `rio.crs` is `None` (measured).
+- `decode_coords="all"` makes the `grid_mapping` variable a coordinate.
+  rioxarray then finds the CRS. Without it, `rio.crs` is `None` (measured).
 - `chunks={}` needs `dask`, which a plain read does not.
 - Each chunk covers one scan by 250 × 250 pixels. A time series at one pixel
   reads one chunk per scan.
