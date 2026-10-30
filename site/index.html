@@ -130,32 +130,38 @@ const map = new maplibregl.Map({
   },
 });
 
-let cur = 0, playing = false, latest = 0;
-async function draw(i) {
+let cur = 0, playing = false, rendering = null;
+// The cursor and the numbers move at once. The map renders one frame at a time, and each
+// frame shows the scan at the cursor when it starts. A drag never queues frames to replay.
+function draw(i) {
   cur = Math.max(0, Math.min(nt - 1, i));
-  const call = ++latest;
-  // The cursor and the numbers move at once. The map follows when its scans arrive.
   document.getElementById("clock").textContent = new Date(times[cur] * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
   document.getElementById("scan").textContent = `${cur + 1} / ${nt}`;
   document.getElementById("frp").textContent = `${Math.round(total[cur]).toLocaleString("en-US")} MW`;
   drawStrip();
-  for (let t = cur + 1; t < Math.min(nt, cur + 8); t++) scan(t);
-  const ages = [...Array(TRAIL).keys()].reverse().filter((age) => cur - age >= 0);
-  const layers = await Promise.all(ages.map((age) => scan(cur - age)));
-  // A later call started while these scans loaded. Its frame replaces this one.
-  if (call !== latest) return;
-  const px = image.data;
-  px.fill(0);
-  ages.forEach((age, k) => {
-    const data = layers[k], alpha = 255 * (1 - age / TRAIL) ** 1.5;
-    for (let p = 0; p < data.length; p++) {
-      if (!(data[p] > 0)) continue;
-      const [r, g, b] = color(data[p]);
-      px[4 * p] = r; px[4 * p + 1] = g; px[4 * p + 2] = b; px[4 * p + 3] = alpha;
-    }
-  });
-  ctx.putImageData(image, 0, 0);
-  map.triggerRepaint();
+  return (rendering ??= render().finally(() => { rendering = null; }));
+}
+async function render() {
+  let shown;
+  do {
+    shown = cur;
+    // Fetch ahead only during play. A drag would fill the connections with scans it skips.
+    if (playing) for (let t = shown + 1; t < Math.min(nt, shown + 8); t++) scan(t);
+    const ages = [...Array(TRAIL).keys()].reverse().filter((age) => shown - age >= 0);
+    const layers = await Promise.all(ages.map((age) => scan(shown - age)));
+    const px = image.data;
+    px.fill(0);
+    ages.forEach((age, k) => {
+      const data = layers[k], alpha = 255 * (1 - age / TRAIL) ** 1.5;
+      for (let p = 0; p < data.length; p++) {
+        if (!(data[p] > 0)) continue;
+        const [r, g, b] = color(data[p]);
+        px[4 * p] = r; px[4 * p + 1] = g; px[4 * p + 2] = b; px[4 * p + 3] = alpha;
+      }
+    });
+    ctx.putImageData(image, 0, 0);
+    map.triggerRepaint();
+  } while (shown !== cur);
 }
 
 // The timeline: total FRP of each scan, and a cursor at the current scan.
