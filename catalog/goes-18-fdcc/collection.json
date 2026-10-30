@@ -349,7 +349,7 @@
   },
   "assets": {
     "icechunk": {
-      "href": "https://data.source.coop/mmidzik/goes-fdc/goes-18-fdcc/icechunk/",
+      "href": "https://data.source.coop/mmidzik/goes-fdc/goes-18-fdcc/icechunk",
       "type": "application/vnd.zarr; version=3",
       "title": "Virtual Zarr cube (Icechunk repository)",
       "description": "Zarr v3 store in an Icechunk repository. Chunks are byte ranges in NOAA netCDF. Open it with icechunk and xarray, and authorize the NOAA https prefix as a virtual chunk container. See README.md.",
@@ -466,7 +466,7 @@
     },
     {
       "rel": "store",
-      "href": "https://data.source.coop/mmidzik/goes-fdc/goes-18-fdcc/icechunk/",
+      "href": "https://data.source.coop/mmidzik/goes-fdc/goes-18-fdcc/icechunk",
       "type": "application/vnd.zarr; version=3",
       "title": "Icechunk repository with the Zarr store"
     }

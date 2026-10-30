@@ -47,16 +47,14 @@ repo = icechunk.Repository.open(storage, config=config, authorize_virtual_chunk_
 session = repo.readonly_session(branch="main")   # or tag="..." to pin a snapshot
 ds = xr.open_zarr(session.store, consolidated=False, decode_coords="all")
 
-power = ds.Power.isel(time=-1).values   # last scan, raw float32, fill value -9
+power = ds.Power.isel(time=-1).values   # last scan, float32, fill value -9 read as NaN
 ```
 
-The recipe is tested with `icechunk.http_storage` against a store served over
-HTTP, in a clean environment with only `icechunk`, `zarr` and `xarray`, and with
-NOAA read live. It returns the same values as a read from the local file
-system. Without the virtual chunk
-container, the read fails with "you need to authorize the virtual chunk
-container". The Source Cooperative URL above is provisional and untested until
-the collection is uploaded. For a worked example that starts from the catalog,
+The recipe is tested against the Source Cooperative URL above, in a clean
+environment with only `icechunk`, `zarr` and `xarray`, and with NOAA read live.
+It returns the same values as a read from the local file system. Without the
+virtual chunk container, the read fails with "you need to authorize the virtual
+chunk container". For a worked example that starts from the catalog,
 see `examples/palisades-frp.ipynb` in the
 [source repository](https://github.com/mmidzik/goes-fdc-catalog).
 
