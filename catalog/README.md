@@ -7,14 +7,15 @@ fire, clear land, cloud, water and the pixels the algorithm could not process.
 The cube holds byte-range references and metadata. The pixel data stays in
 NOAA's public `noaa-goes18` bucket on AWS S3.
 
-> **Demo.** The catalog is not published yet. The collection's `extent` gives
-> the time range of the cube, and the pipeline extends the cube in time.
+> **Demo.** The collection's `extent` gives the time range of the cube, and the
+> pipeline extends the cube in time.
 
 NOAA and NESDIS produce the data and remain the authoritative source. This
 catalog is a **mirror** of it.
 
-- **Get the files**: TODO, not on Source Cooperative yet
-- **Browse the metadata**: TODO, needs the published STAC root
+- **Get the files**: the [Source Cooperative product](https://source.coop/mmidzik/goes-fdc)
+- **Browse the metadata**: the catalog in
+  [STAC Browser](https://radiantearth.github.io/stac-browser/#/external/data.source.coop/mmidzik/goes-fdc/catalog.json)
 - **Read the build**:
   [the repository on GitHub](https://github.com/mmidzik/goes-fdc-catalog)
 - **The collection**: the [goes-18-fdcc README](goes-18-fdcc/README.md)

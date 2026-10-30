@@ -6,13 +6,15 @@ A [Portolan](https://github.com/portolan-sdi/portolan-spec) catalog mirroring
 collection is GOES-18 CONUS.
 
 Catalog metadata and the build pipeline are in this repository. The Icechunk
-repository for each cube goes to Source Cooperative. The pixel data stays in
+repository for each cube is on Source Cooperative. The pixel data stays in
 NOAA's public [buckets on AWS S3](https://registry.opendata.aws/noaa-goes/), and
 the cube contains only byte-range references to it.
 
-> **Status: demo, built locally. Publishing to Source Cooperative is TODO.**
+> **Status: demo.** The catalog and the cube are published on Source
+> Cooperative. The cube covers a short time range.
 
-- **Published catalog**: TODO, not on Source Cooperative yet
+- **Published catalog**: <https://data.source.coop/mmidzik/goes-fdc/catalog.json>,
+  the [Source Cooperative product](https://source.coop/mmidzik/goes-fdc)
 - **Upstream**: https://registry.opendata.aws/noaa-goes/ (NOAA and NESDIS
   produce the data and remain the authoritative source)
 - **Methods and design**: [docs/architecture.md](docs/architecture.md)
@@ -109,9 +111,9 @@ Data files never enter git. `.gitignore` blocks the common formats, plus
 
 - **Extend the time range** on a cloud machine with the same `goes-fdc build`
   command.
-- **Publish to Source Cooperative.** The target is the `mmidzik/goes-fdc`
-  product. Check that Source Cooperative supports the conditional writes
-  Icechunk needs, then upload the store and the catalog.
+- **Check Icechunk commits on Source Cooperative.** An append commits to the
+  published store. Icechunk needs conditional writes for that, and nobody has
+  tested them through the data proxy yet. Test on a scratch prefix first.
 - Run the update workflow once, then decide whether to schedule it.
 
 ## Acknowledgements
