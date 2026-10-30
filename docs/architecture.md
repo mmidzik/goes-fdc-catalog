@@ -10,23 +10,22 @@ pipeline code is in `pipeline/`, and the published catalog is in `catalog/`.
 The catalog publishes NOAA's GOES ABI Fire/Hot Spot Characterization (FDC) as a
 Portolan catalog. Each collection is a **virtual Zarr cube** in an Icechunk
 repository. The cube references byte ranges in NOAA's netCDF files and copies no
-pixel data. We run no server. Everything we host is static files on Source
-Cooperative.
+pixel data.
 
 The method is similar to Earthmover's
 [GOES-16 virtual Zarr work](https://www.earthmover.io/blog/virtual-zarr/). This
 design applies it to the FDC product and uses a Portolan catalog as the
 discovery layer.
 
-The store follows the GeoZarr conventions and the proposed Portolan Zarr
-profile wherever a virtual store can.
+The store follows the GeoZarr conventions and the proposed Portolan Zarr profile
+wherever a virtual store can.
 [Specifications and conventions](#specifications-and-conventions) lists what it
 follows. The catalog is a Zarr test case for
 [portolan-spec#132](https://github.com/portolan-sdi/portolan-spec/issues/132),
 which defers a normative Zarr profile until real Zarr datasets have been tested
 in catalogs. Zarr stays outside Portolan's conformance surface.
-[Zarr in Portolan](#zarr-in-portolan) discusses what a virtual store shows
-about that profile.
+[Zarr in Portolan](#zarr-in-portolan) discusses what a virtual store shows about
+that profile.
 
 ## Goals and non-goals
 
@@ -100,7 +99,7 @@ keeps NOAA's projection variable, NOAA's scene-extent variable and NOAA's
 per-scan summary values, which are header values, not pixels.
 
 **Which variables.** The build reads the list of variables from the file's own
-metadata, not from a list in the code:
+metadata.
 
 - The pixel variables are the variables on the `y` × `x` grid.
 - The per-scan summary values are the scalars with a CF `cell_methods`
@@ -111,9 +110,9 @@ metadata, not from a list in the code:
   `geospatial_westbound_longitude` attribute.
 
 One file gives the list for each UTC day of scans. That file is the first scan
-of the day with different start and end stamps. The collection metadata
-then takes variable names, descriptions, units, fill values and the bounding
-box from the store.
+of the day with different start and end stamps. The collection metadata then
+takes variable names, descriptions, units, fill values and the bounding box from
+the store.
 
 **Time.** The build takes each scan's time from the file, and falls back to the
 file-name stamps when the file value is not usable.
@@ -121,19 +120,18 @@ file-name stamps when the file value is not usable.
 **One grid per cube.** A virtual cube inherits the grid and encoding of the
 files it references, and NOAA changes these over a satellite's life. The build
 compares each scan with the store on standard metadata only. It compares the
-`proj` and `spatial` root attributes. It also compares each array's chunks,
-data type, fill value, codecs and CF scaling, and it stops on any difference. Scans with a
-different grid belong in a separate collection. An append also stops when the
-day adds or drops a variable along `time`, because that array would get a
+`proj` and `spatial` root attributes. It also compares each array's chunks, data
+type, fill value, codecs and CF scaling, and it stops on any difference. Scans
+with a different grid belong in a separate collection. An append also stops when
+the day adds or drops a variable along `time`, because that array would get a
 different length from `time`.
 
 **Incomplete files.** A file without one of the pixel variables gets an array
 with no chunk references for that scan, so a read returns the fill value. A file
 without one of the per-scan values gets NaN, in the encoding of the other scans.
-On write, NaN becomes the variable's `_FillValue`. A file
-whose start and end stamps are equal is kept with the file-name midpoint as its
-time, unless every pixel variable is all fill values. That check is the only
-pixel read in a build.
+On write, NaN becomes the variable's `_FillValue`. A file whose start and end
+stamps are equal is kept with the file-name midpoint as its time, unless every
+pixel variable is all fill values. That check is the only pixel read in a build.
 
 **Writing the store.** Each UTC day is one Icechunk commit, so a failed day
 commits nothing and the next run retries it. The repository authorizes NOAA's
@@ -165,75 +163,30 @@ A reader must authorize NOAA's bucket as a virtual chunk container. The tested
 recipe is in the [collection README](../catalog/goes-18-fdcc/README.md#access).
 A generic Zarr client that does not know Icechunk cannot open the store by URL.
 
-**The grid for each kind of reader.** The CRS and the grid come from NOAA's
-file and are written three times, once for each kind of reader:
+**The grid for each kind of reader.** The CRS and the grid come from NOAA's file
+and are written three times, once for each kind of reader:
 
-| Reader | Where it looks | CRS | Grid |
-|---|---|---|---|
-| STAC clients | The STAC asset | `proj:wkt2` | `proj:transform` and `proj:shape`, in metres |
-| GeoZarr clients | The store root attributes | `proj:wkt2` | `spatial:transform`, `spatial:shape` and `spatial:dimensions`, in metres |
-| CF clients | Each array's `grid_mapping` | `goes_imager_projection` | `x` and `y`, in radians |
-
-CF and NOAA define a geostationary grid's coordinates as scan angles in radians.
-The geostationary CRS is in metres, which are the scan angle times the satellite
-height. The metres are only in the fields whose standards define metres, so no
-client converts units. The transform origin is the outer edge of the first
-pixel, as in `stactools-goes`, which builds Planetary Computer's GOES items.
-
-**Change detection.** Each virtual reference records the time it was written.
-Icechunk sends that time with every chunk read, and NOAA's bucket refuses the
-read if the file changed after that time. The check is by time, not by content,
-so a re-upload of identical bytes also stops the read. It works only against a
-server that supports conditional reads, as S3 does.
-
-## Verification
-
-- **Read-back.** All five variables of sampled scans read back byte-identical to
-  the raw netCDF.
-- **Append.** A repeated run over the same window adds no scans, and the time
-  axis remains unique and monotonic.
-- **Reading over HTTP.** A clean environment with only `icechunk`, `zarr` and
-  `xarray` opens the store over HTTP and returns the same values as a local
-  read.
-- **Change detection.** NOAA's bucket refuses a read of a file that changed
-  after the reference was written. A server without conditional reads returns
-  the changed file with no error.
-- **Conventions.** The root attributes validate against the published `proj`,
-  `spatial`, `stac` and `license` JSON schemas and against
-  [`geozarr-toolkit`](https://github.com/zarr-developers/geozarr-toolkit), the
-  GeoZarr working group's validator.
-- **Pixel placement.** `spatial:transform` with `proj:wkt2` places the corner and
-  centre pixels at the same longitude and latitude as NOAA's published
-  fixed-grid equations. The transform equals the `proj:transform` of Planetary
-  Computer's GOES-18 CONUS `goes-cmi` items.
-- **CF readers.** rioxarray finds the CRS through `grid_mapping` when the store
-  is opened with `decode_coords="all"`, as `xarray:open_kwargs` states.
-- **Validation.** `rashid check catalog --schema` reports no errors. The
-  warnings are in [conformance.md](conformance.md).
+| Reader          | Where it looks              | CRS                      | Grid                                                                     |
+| --------------- | --------------------------- | ------------------------ | ------------------------------------------------------------------------ |
+| STAC clients    | The STAC asset              | `proj:wkt2`              | `proj:transform` and `proj:shape`, in metres                             |
+| GeoZarr clients | The store root attributes   | `proj:wkt2`              | `spatial:transform`, `spatial:shape` and `spatial:dimensions`, in metres |
+| CF clients      | Each array's `grid_mapping` | `goes_imager_projection` | `x` and `y`, in radians                                                  |
 
 ## Specifications and conventions
 
-| Specification | Status | How |
-|---|---|---|
-| Zarr v3 | Follows | Each snapshot is a Zarr v3 group |
-| GeoZarr `proj` convention v0.1 | Follows | `proj:wkt2` in the root attributes. A geostationary grid has no EPSG code |
-| GeoZarr `spatial` convention v0.1 | Follows | `spatial:dimensions`, `spatial:shape` and `spatial:transform` in the root attributes |
-| GeoZarr `multiscales` convention v0.1 | Does not follow | A pyramid needs computed pixels, so a virtual store cannot have one |
-| Zarr `stac` convention v0.1 | Follows | `stac:link` points to the collection |
-| Zarr `license` convention v1 | Follows | `license` is `{"spdx": "CC0-1.0"}` |
-| Zarr `CF` convention | Not registered | The CF attributes are present. The convention has no tagged release to register |
-| CF conventions | Follows for the pixel variables | NOAA's CF attributes, with a `grid_mapping` that resolves |
-| STAC 1.1 | Follows | rashid's schema check reports no errors. stac-check crashes on the collection, as [conformance.md](conformance.md) records |
-| STAC extensions | Follows | `zarr`, `xarray-assets`, `datacube`, `projection`, `render` and `file` |
-| STAC Zarr best practices | Follows | Media type `application/vnd.zarr; version=3`, a collection-level asset for the store group, variables in `bands`, and a `rel: store` link |
-| Portolan core | Follows | The catalog and collection pass rashid with no errors |
-| Proposed Portolan Zarr profile | Follows where a virtual store can | See [Zarr in Portolan](#zarr-in-portolan) |
-
-The pipeline writes the convention attributes with
-[`zarr-cm`](https://github.com/zarr-conventions/zarr-cm), the Zarr conventions
-project's Python library. The GeoZarr v0.4 draft, which was CF-based, is
-superseded by the conventions above. Its `GeoTransform` and `crs_wkt` attributes
-are not written.
+| Specification                         | Status                            | How                                                                                                                                       |
+| ------------------------------------- | --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Zarr v3                               | Follows                           | Each snapshot is a Zarr v3 group                                                                                                          |
+| GeoZarr `proj` convention v0.1        | Follows                           | `proj:wkt2` in the root attributes. A geostationary grid has no EPSG code                                                                 |
+| GeoZarr `spatial` convention v0.1     | Follows                           | `spatial:dimensions`, `spatial:shape` and `spatial:transform` in the root attributes                                                      |
+| GeoZarr `multiscales` convention v0.1 | Does not follow                   | A pyramid needs computed pixels, so a virtual store cannot have one                                                                       |
+| Zarr `stac` convention v0.1           | Follows                           | `stac:link` points to the collection                                                                                                      |
+| CF conventions                        | Follows for the pixel variables   | NOAA's CF attributes, with a `grid_mapping` that resolves                                                                                 |
+| STAC 1.1                              | Follows                           | rashid's schema check reports no errors. stac-check crashes on the collection, as [conformance.md](conformance.md) records                |
+| STAC extensions                       | Follows                           | `zarr`, `xarray-assets`, `datacube`, `projection`, `render` and `file`                                                                    |
+| STAC Zarr best practices              | Follows                           | Media type `application/vnd.zarr; version=3`, a collection-level asset for the store group, variables in `bands`, and a `rel: store` link |
+| Portolan core                         | Follows                           | The catalog and collection pass rashid with no errors                                                                                     |
+| Proposed Portolan Zarr profile        | Follows where a virtual store can | See [Zarr in Portolan](#zarr-in-portolan)                                                                                                 |
 
 ## Zarr in Portolan
 
@@ -244,18 +197,13 @@ The draft profile in portolan-spec#128 leaves virtual and transactional stores
 out of its first version. A virtual, appendable store meets most of the draft,
 and the parts it cannot meet show where a profile must allow for such stores.
 
-**Multiscale depth.** A virtual store has a depth of one. A coarser level needs
-computed pixels, and those pixels are copied data. A minimum depth would
-exclude every virtual store. An appendable store also pays for each level on
-every append. So the profile should set no minimum depth, or exempt virtual
-stores from `multiscales`.
+**Multiscale depth.** A virtual store has a depth of one. Suggested that the
+profile should set no minimum depth, or exempt virtual stores from
+`multiscales`.
 
 **Statistics.** The collection has no computed statistics, because they change
-with every append. The `render` hint gives a viewer a fixed display range for
-fire radiative power. NOAA's own per-scan statistics are `time` variables in
-the store. So statistics that belong to each time step are data, not
-collection metadata. For a categorical variable such as the fire mask, a
-minimum, maximum and mean have no meaning.
+with every append. Statistics that belong to each time step are data, not
+collection metadata.
 
 **STAC requirements.** A client needs these fields to open the store:
 
@@ -272,14 +220,8 @@ compression. It inherits them from the source files. Here each read of one pixel
 over time touches one 250 × 250 chunk per scan. So chunk and shard rules belong
 in conversion guidance, not in conformance.
 
-**Consolidated metadata.** The draft requires it. Icechunk has no consolidated
-metadata, so an Icechunk store cannot meet that requirement.
-
-**`file:size` and `file:checksum`.** The store asset is a directory, so it has no
-single size or checksum. rashid reports PTL-AST-003 as a warning.
-
-**HTTP access.** The manifests are static files. The chunks are Range requests to
-NOAA's S3 bucket, which allows anonymous GET and CORS from any origin.
+**`file:size` and `file:checksum`.** The store asset is a directory, so it has
+no single size or checksum. rashid reports PTL-AST-003 as a warning.
 
 **Collection or item.** One store spans all scans, so the store is a
 collection-level asset and the collection has no items.

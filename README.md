@@ -60,17 +60,17 @@ existing URL moves.
 
 ## The pipeline
 
-| Module                                | Does                                                                       |
-| ------------------------------------- | -------------------------------------------------------------------------- |
-| `pipeline/src/goes_fdc/keys.py`       | Lists the scans in a time window from the NOAA bucket.                     |
-| `pipeline/src/goes_fdc/virtualize.py` | Reads each netCDF header with VirtualiZarr and checks the grid.            |
-| `pipeline/src/goes_fdc/store.py`      | Appends new time steps to the Icechunk repo.                               |
-| `pipeline/src/goes_fdc/cli.py`        | The `goes-fdc build` command. One commit per UTC day, and resumable.       |
-| `pipeline/src/goes_fdc/collection.py` | Writes `collection.json` from facts read from the store.                   |
-| `pipeline/src/goes_fdc/thumbnail.py`  | Renders the collection thumbnail.                                          |
-| `tools/publish.py`                    | Syncs `catalog/` to the bucket. From the template.                         |
-| `tools/upload_data.py`                | Uploads the Icechunk repo. From the template.                              |
-| `.github/workflows/update.yml`        | Appends new scans to the published store. Manual trigger.                  |
+| Module                                | Does                                                                 |
+| ------------------------------------- | -------------------------------------------------------------------- |
+| `pipeline/src/goes_fdc/keys.py`       | Lists the scans in a time window from the NOAA bucket.               |
+| `pipeline/src/goes_fdc/virtualize.py` | Reads each netCDF header with VirtualiZarr and checks the grid.      |
+| `pipeline/src/goes_fdc/store.py`      | Appends new time steps to the Icechunk repo.                         |
+| `pipeline/src/goes_fdc/cli.py`        | The `goes-fdc build` command. One commit per UTC day, and resumable. |
+| `pipeline/src/goes_fdc/collection.py` | Writes `collection.json` from facts read from the store.             |
+| `pipeline/src/goes_fdc/thumbnail.py`  | Renders the collection thumbnail.                                    |
+| `tools/publish.py`                    | Syncs `catalog/` to the bucket. From the template.                   |
+| `tools/upload_data.py`                | Uploads the Icechunk repo. From the template.                        |
+| `.github/workflows/update.yml`        | Appends new scans to the published store. Manual trigger.            |
 
 ```bash
 uv sync
@@ -113,8 +113,8 @@ Data files never enter git. `.gitignore` blocks the common formats, plus
 - **Publish to Source Cooperative.** Replace the `<ACCOUNT>` placeholder in
   `catalog.publish.yaml`, the collection asset hrefs and the published docs,
   then regenerate the collection. `tools/publish.py` refuses `--confirm` while
-  the placeholder is set. Check that Source Cooperative supports the
-  conditional writes Icechunk needs.
+  the placeholder is set. Check that Source Cooperative supports the conditional
+  writes Icechunk needs.
 - Run the update workflow once, then decide whether to schedule it.
 
 ## Acknowledgements
@@ -126,9 +126,7 @@ Tom Nicholas and the Earthmover team.
 
 Chris Holmes's
 [firms-catalog](https://github.com/portolan-mirrors/firms-catalog) is the model
-for how this repository is laid out and documented. Thank you to Chris Holmes
-for that guidance, and for the leadership on Portolan that makes catalogs like
-this one possible.
+for how this repository is laid out and documented.
 
 ## License
 
