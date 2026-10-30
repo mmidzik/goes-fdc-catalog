@@ -106,7 +106,7 @@ The cube's root attributes are the GeoZarr conventions only, written with `zarr-
 
 ### Scan checks
 
-- **Grid and encoding:** every scan in a cube shares the `proj` and `spatial` root attributes. Each pixel variable keeps one encoding across the scans: its chunks, data type, fill value, codecs, and CF scaling. A scan that differs raises `EncodingMismatch`. NOAA changes these over the life of a satellite, so one satellite can need more than one cube.
+- **Grid and encoding:** every scan in a cube shares the `proj` and `spatial` root attributes. Each pixel variable keeps one encoding across the scans. The `encoding_facts` function lists the fields that the check compares. A scan that differs raises `EncodingMismatch`. NOAA changes these over the life of a satellite, so one satellite can need more than one cube.
 - **Aborted scans:** `build_cube` skips a scan with equal start and end stamps and only fill values.
 - **Missing variables:** a scan that lacks a variable of the layout gets a stand-in with no chunk references. A read of the stand-in returns the fill value.
 - **Appends:** `store.write` refuses an append whose signature differs from the store, or that adds or drops a variable along `time`.
