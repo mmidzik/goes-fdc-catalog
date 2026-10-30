@@ -81,12 +81,19 @@ uv run goes-fdc build --start 2025-01-07T00:00 --end 2025-01-21T00:00
 The build reads netCDF headers only and needs no NOAA credentials. It writes the
 store to `local/publish/goes-18-fdcc/icechunk`.
 
-To build and serve the fire player locally:
+## The fire player page
+
+`site/` holds a web page that plays every GOES-18 fire pixel over California.
+The Pages workflow deploys it. To build and serve it locally:
 
 ```bash
 uv run --group site python site/build.py local/site
-python -m http.server -d local/site
+uv run python -m http.server 8000 -d local/site
 ```
+
+Then open http://localhost:8000. The build reads the published catalog and
+NOAA's bucket, and needs no credentials. It takes about 5 minutes. After a
+change to `site/index.html` only, copy the file to `local/site/` and reload.
 
 ## Working on this repository
 
