@@ -36,3 +36,6 @@ __pycache__/
 # Local pipeline output and staging: Icechunk repos, raw netCDF samples,
 # probe scripts, notes, and local/publish (data_dir).
 local/
+
+# The fire player site. The Pages workflow builds it, and it holds data.
+_site/

@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GOES-18 FDC virtual Zarr demo</title>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0a0c10; --panel: #11141a; --line: #232833;
+    --fg: #e6e8ec; --muted: #8a93a3; --dim: #5b6372; --fire: #ff9a3c;
+    --mono: ui-monospace, "SF Mono", Menlo, monospace;
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 14px/1.5 system-ui, sans-serif; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 24px 16px 40px; display: grid; gap: 12px; }
+  h1 { font-size: clamp(24px, 4vw, 36px); line-height: 1.1; margin: 0; }
+  p { color: var(--muted); margin: 0; max-width: 70ch; }
+  #map { height: min(62vh, 620px); border: 1px solid var(--line); border-radius: 4px; }
+  .controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 20px; font-family: var(--mono); font-size: 13px; }
+  .controls .stats { margin-left: auto; }
+  .controls span { color: var(--muted); }
+  button { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 3px; padding: 6px 14px; cursor: pointer; }
+  #strip { width: 100%; height: 80px; cursor: ew-resize; touch-action: none; }
+  #strip:focus-visible, button:focus-visible { outline: 2px solid var(--fire); outline-offset: 2px; }
+  .foot { color: var(--dim); font-size: 12.5px; }
+  .foot a { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>GOES-18 Fire/Hot Spot Characterization over California: a virtual Zarr demo</h1>
+  <p>GOES-18 sees all of California in each scan of its CONUS sector, one scan every five minutes. This page plays every scan from 7 to 20 January 2025, which includes the Palisades and Eaton fires near Los Angeles. Each block is a fire pixel, about 2 km across, colored by fire radiative power. Drag the strip to scrub. The arrow keys step one scan.</p>
+  <div id="map"></div>
+  <div class="controls">
+    <button id="play" type="button">Play</button>
+    <b id="clock"></b>
+    <div class="stats"><span>scan</span> <b id="scan"></b> &nbsp; <span>FRP over California</span> <b id="frp"></b></div>
+  </div>
+  <canvas id="strip" tabindex="0" aria-label="Timeline. Drag or use the arrow keys to change the scan."></canvas>
+  <p class="foot">Data: NOAA GOES-18 ABI L2 Fire/Hot Spot Characterization. The fire pixels were extracted from the
+    <a href="https://github.com/mmidzik/goes-fdc-catalog">goes-fdc</a> virtual Zarr cube by a build step and stored next to this page as
+    <a href="fires.zarr/zarr.json">fires.zarr</a>, a Zarr v3 store in EPSG:4326 with one chunk per scan.</p>
+</div>
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script type="module">
+import * as zarr from "https://cdn.jsdelivr.net/npm/zarrita@0.7.5/+esm";
+
+// Open the Zarr store. The grid comes from its GeoZarr `spatial:transform`.
+const root = await zarr.open(new zarr.FetchStore(new URL("fires.zarr", location.href).href), { kind: "group" });
+const readAll = async (name) => (await zarr.get(await zarr.open(root.resolve(name), { kind: "array" }))).data;
+const frp = await zarr.open(root.resolve("frp"), { kind: "array" });
+const times = Array.from(await readAll("time"), Number);
+const total = await readAll("frp_total");
+const [nt, ny, nx] = frp.shape;
+const [a, , c, , e, f] = root.attrs["spatial:transform"];
+const west = c, east = c + a * nx, north = f, south = f + e * ny;
+
+// Each chunk of frp holds one scan. Keep the recent scans and fetch the next ones ahead.
+const scans = new Map();
+function scan(t) {
+  if (!scans.has(t)) {
+    scans.set(t, zarr.get(frp, [t, null, null]).then((r) => r.data));
+    if (scans.size > 64) scans.delete(scans.keys().next().value);
+  }
+  return scans.get(t);
+}
+
+// Color ramp for log10 FRP from 10 to 1000 MW, as a lookup table of 256 colors.
+const STOPS = [[0, [120, 28, 109]], [0.3, [188, 55, 84]], [0.55, [237, 105, 37]], [0.8, [251, 180, 26]], [1, [252, 255, 164]]];
+const RAMP = Array.from({ length: 256 }, (_, n) => {
+  const v = n / 255, i = Math.max(1, STOPS.findIndex(([s]) => s >= v));
+  const [s0, c0] = STOPS[i - 1], [s1, c1] = STOPS[i], t = (v - s0) / (s1 - s0);
+  return c0.map((x, j) => x + (c1[j] - x) * t);
+});
+const color = (mw) => RAMP[Math.round(255 * Math.min(1, Math.max(0, (Math.log10(mw) - 1) / 2)))];
+const TRAIL = 4; // scans that fade out behind the current one
+
+const canvas = document.createElement("canvas");
+canvas.width = nx; canvas.height = ny;
+const ctx = canvas.getContext("2d");
+const image = ctx.createImageData(nx, ny);
+
+const map = new maplibregl.Map({
+  container: "map",
+  bounds: [[west, south], [east, north]],
+  fitBoundsOptions: { padding: 20 },
+  style: {
+    version: 8,
+    sources: {
+      basemap: {
+        type: "raster", tileSize: 256,
+        tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+        maxzoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      },
+      fire: { type: "canvas", canvas, animate: true, coordinates: [[west, north], [east, north], [east, south], [west, south]] },
+      extent: {
+        type: "geojson",
+        data: { type: "Polygon", coordinates: [[[west, north], [east, north], [east, south], [west, south], [west, north]]] },
+      },
+    },
+    layers: [
+      // Grey and dim the OSM tiles so that the fire pixels stand out.
+      { id: "basemap", type: "raster", source: "basemap",
+        paint: { "raster-saturation": -1, "raster-contrast": -0.2, "raster-brightness-max": 0.32 } },
+      // The area of the store. GOES-18 scans all of it every five minutes.
+      { id: "extent", type: "line", source: "extent", paint: { "line-color": "#ff9a3c", "line-opacity": 0.5, "line-dasharray": [2, 2] } },
+      { id: "fire", type: "raster", source: "fire", paint: { "raster-resampling": "nearest", "raster-fade-duration": 0 } },
+    ],
+  },
+});
+
+let cur = 0, playing = false;
+async function draw(i) {
+  cur = Math.max(0, Math.min(nt - 1, i));
+  const px = image.data;
+  px.fill(0);
+  for (let t = cur + 1; t < Math.min(nt, cur + 8); t++) scan(t);
+  for (let age = TRAIL - 1; age >= 0; age--) {
+    const t = cur - age;
+    if (t < 0) continue;
+    const data = await scan(t), alpha = 255 * (1 - age / TRAIL) ** 1.5;
+    for (let p = 0; p < data.length; p++) {
+      if (!(data[p] > 0)) continue;
+      const [r, g, b] = color(data[p]);
+      px[4 * p] = r; px[4 * p + 1] = g; px[4 * p + 2] = b; px[4 * p + 3] = alpha;
+    }
+  }
+  ctx.putImageData(image, 0, 0);
+  map.triggerRepaint();
+  document.getElementById("clock").textContent = new Date(times[cur] * 1000).toISOString().slice(0, 16).replace("T", " ") + " UTC";
+  document.getElementById("scan").textContent = `${cur + 1} / ${nt}`;
+  document.getElementById("frp").textContent = `${Math.round(total[cur]).toLocaleString("en-US")} MW`;
+  drawStrip();
+}
+
+// The timeline: total FRP of each scan, and a cursor at the current scan.
+const strip = document.getElementById("strip"), sctx = strip.getContext("2d");
+const peak = Math.max(...total);
+function drawStrip() {
+  const w = strip.clientWidth, h = strip.clientHeight;
+  strip.width = w * devicePixelRatio; strip.height = h * devicePixelRatio;
+  sctx.scale(devicePixelRatio, devicePixelRatio);
+  const x = (i) => (i / (nt - 1)) * w, y = (v) => h - 14 - (v / peak) * (h - 20);
+  sctx.fillStyle = "#11141a"; sctx.fillRect(0, 0, w, h);
+  sctx.beginPath(); sctx.moveTo(0, y(0));
+  total.forEach((v, i) => sctx.lineTo(x(i), y(v)));
+  sctx.lineTo(w, y(0)); sctx.fillStyle = "rgba(255,154,60,.4)"; sctx.fill();
+  sctx.font = "10.5px ui-monospace, monospace"; sctx.fillStyle = "#5b6372";
+  times.forEach((t, i) => {
+    if (i && Math.floor(t / 86400) !== Math.floor(times[i - 1] / 86400)) sctx.fillText(new Date(t * 1000).toISOString().slice(5, 10), x(i) + 3, h - 2);
+  });
+  sctx.fillStyle = "#e6e8ec"; sctx.fillRect(x(cur), 0, 1.5, h - 12);
+}
+
+const button = document.getElementById("play");
+async function play() {
+  while (playing && cur < nt - 1) {
+    await draw(cur + 1);
+    await new Promise((r) => setTimeout(r, 30));
+  }
+  playing = false; button.textContent = "Play";
+}
+button.onclick = () => {
+  playing = !playing; button.textContent = playing ? "Pause" : "Play";
+  if (playing) { if (cur >= nt - 1) cur = 0; play(); }
+};
+const seek = (ev) => { const r = strip.getBoundingClientRect(); draw(Math.round(((ev.clientX - r.left) / r.width) * (nt - 1))); };
+strip.addEventListener("pointerdown", (ev) => { strip.setPointerCapture(ev.pointerId); playing = false; seek(ev); });
+strip.addEventListener("pointermove", (ev) => { if (strip.hasPointerCapture(ev.pointerId)) seek(ev); });
+addEventListener("keydown", (ev) => {
+  if (ev.key !== "ArrowRight" && ev.key !== "ArrowLeft") return;
+  playing = false; draw(cur + (ev.key === "ArrowRight" ? 1 : -1)); ev.preventDefault();
+});
+addEventListener("resize", drawStrip);
+
+map.on("load", () => draw(total.indexOf(peak)));
+</script>
+</body>
+</html>

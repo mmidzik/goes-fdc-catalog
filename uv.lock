@@ -681,6 +681,10 @@ examples = [
     { name = "pystac" },
     { name = "rioxarray" },
 ]
+site = [
+    { name = "pystac" },
+    { name = "rioxarray" },
+]
 upload = [
     { name = "boto3" },
 ]
@@ -710,6 +714,10 @@ examples = [
     { name = "ipykernel", specifier = ">=7.4.0" },
     { name = "matplotlib", specifier = ">=3.11.2" },
     { name = "nbconvert", specifier = ">=7.17.2" },
+    { name = "pystac", specifier = ">=1.15.2" },
+    { name = "rioxarray", specifier = ">=0.23.0" },
+]
+site = [
     { name = "pystac", specifier = ">=1.15.2" },
     { name = "rioxarray", specifier = ">=0.23.0" },
 ]

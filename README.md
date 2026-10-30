@@ -72,6 +72,8 @@ existing URL moves.
 | `tools/publish.py`                    | Syncs `catalog/` to the bucket. From the [template][tpl].                  |
 | `tools/upload_data.py`                | Uploads the Icechunk repo. From the [template][tpl].                       |
 | `.github/workflows/update.yml`        | Appends new scans to the published store. Manual trigger.                  |
+| `site/build.py`, `site/index.html`    | The fire player page. The build reads the published catalog and writes a Zarr v3 store of fire power over California. |
+| `.github/workflows/pages.yml`         | Builds the fire player and deploys it to GitHub Pages.                     |
 
 ```bash
 uv sync
@@ -80,6 +82,20 @@ uv run goes-fdc build --start 2025-01-07T00:00 --end 2025-01-21T00:00
 
 The build reads netCDF headers only and needs no NOAA credentials. It writes the
 store to `local/publish/goes-18-fdcc/icechunk`.
+
+## The fire player page
+
+`site/` holds a web page that plays every GOES-18 fire pixel over California.
+The Pages workflow deploys it. To build and serve it locally:
+
+```bash
+uv run --group site python site/build.py local/site
+uv run python -m http.server 8000 -d local/site
+```
+
+Then open http://localhost:8000. The build reads the published catalog and
+NOAA's bucket, and needs no credentials. It takes about 5 minutes. After a
+change to `site/index.html` only, copy the file to `local/site/` and reload.
 
 ## Working on this repository
 
