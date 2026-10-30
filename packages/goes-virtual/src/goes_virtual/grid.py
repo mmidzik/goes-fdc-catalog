@@ -20,6 +20,8 @@ from zarr_cm import proj as zcm_proj
 from zarr_cm import spatial as zcm_spatial
 from zarr_cm import stac as zcm_stac
 
+from .layout import PIXEL_DIMS, grid_mapping
+
 LICENSE_SPDX = "CC0-1.0"
 GRID_KEYS = ("proj:wkt2", "spatial:dimensions", "spatial:shape", "spatial:transform")
 
@@ -96,16 +98,14 @@ def grid_facts(attrs: Mapping[str, Any]) -> dict[str, Any]:
     return {k: attrs[k] for k in GRID_KEYS}
 
 
+def _pixel_variables(cube: xr.Dataset) -> list[str]:
+    """The data variables whose last two dimensions are `y` and `x`."""
+    return [str(v) for v in cube.data_vars if cube[v].dims[-2:] == PIXEL_DIMS]
+
+
 def projection_name(cube: xr.Dataset) -> str:
     """The variable that the cube's pixel variables name in `grid_mapping`."""
-    names = {
-        cube[v].attrs.get("grid_mapping") for v in cube.data_vars if cube[v].dims[-2:] == ("y", "x")
-    }
-    if len(names) != 1 or None in names:
-        raise ValueError(
-            f"the pixel variables do not share one grid_mapping: {sorted(map(str, names))}"
-        )
-    name = str(names.pop())
+    name = grid_mapping(cube, _pixel_variables(cube))
     if name not in cube.variables:
         raise ValueError(f"the grid mapping variable {name} is not in the cube")
     return name
@@ -121,7 +121,7 @@ def _source_chunks(cube: xr.Dataset) -> dict[str, int]:
 
     Every pixel variable of a scan shares its grid and chunking, so the first one is read.
     """
-    first = next(cube[v] for v in cube.data_vars if cube[v].dims[-2:] == ("y", "x"))
+    first = cube[_pixel_variables(cube)[0]]
     chunks = dict(zip(map(str, first.dims), first.data.metadata.chunks, strict=True))
     return {"y": int(chunks["y"]), "x": int(chunks["x"])}
 
@@ -131,25 +131,39 @@ def crop_window(cube: xr.Dataset, bbox: Bbox) -> dict[str, slice]:
 
     ``x`` and ``y`` are scan angles in radians. Times the satellite height, they
     are metres on the projection plane. A virtual array can only be cut on chunk
-    boundaries, so the window grows to them.
+    boundaries, so the window grows to them. A ``bbox`` with ``west`` greater
+    than ``east`` crosses the antimeridian.
     """
     projection = cube[projection_name(cube)].attrs
     height = float(projection["perspective_point_height"])
     west, south, east, north = bbox
-    grid_lon, grid_lat = np.meshgrid(np.linspace(west, east, 5), np.linspace(south, north, 5))
+    lons = np.linspace(west, east + 360 if east < west else east, 5)
+    lons = (lons + 180) % 360 - 180
+    grid_lon, grid_lat = np.meshgrid(lons, np.linspace(south, north, 5))
     x_m, y_m = Transformer.from_crs("EPSG:4326", crs(projection), always_xy=True).transform(
         grid_lon.ravel(), grid_lat.ravel()
     )
     if not (np.isfinite(x_m).all() and np.isfinite(y_m).all()):
         raise ValueError(f"bbox {bbox} is not inside the Earth disk seen by this satellite")
 
+    bounds = {
+        "x": (x_m.min() / height, x_m.max() / height),
+        "y": (y_m.min() / height, y_m.max() / height),
+    }
+    for axis, (low, high) in bounds.items():
+        angle = cube[axis].values
+        half = abs(float(angle[1] - angle[0])) / 2
+        if low < angle.min() - half or high > angle.max() + half:
+            raise ValueError(f"bbox {bbox} is not inside the grid of this cube along {axis}")
+
     chunks = _source_chunks(cube)
     window = {}
-    for axis, low, high in (("x", x_m.min(), x_m.max()), ("y", y_m.min(), y_m.max())):
+    for axis, (low, high) in bounds.items():
         angle = cube[axis].values
-        inside = np.flatnonzero((angle >= low / height) & (angle <= high / height))
-        if inside.size == 0:  # a box smaller than one pixel: take the pixel it sits in
-            inside = np.array([np.abs(angle - (low + high) / 2 / height).argmin()])
+        inside = np.flatnonzero((angle >= low) & (angle <= high))
+        if inside.size == 0:
+            # The box is inside one pixel. Take the pixel nearest its centre.
+            inside = np.array([np.abs(angle - (low + high) / 2).argmin()])
         size = chunks[axis]
         start = (int(inside.min()) // size) * size
         stop = min(-(-(int(inside.max()) + 1) // size) * size, angle.size)

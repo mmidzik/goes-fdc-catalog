@@ -23,7 +23,7 @@ SCAN_CADENCE: dict[ScanMode, str] = {
 def time_step(scan_modes: Sequence[ScanMode]) -> str:
     """The nominal step between scans, from each scan's mode and scene.
 
-    Every scan must share one mode and scene: a window across a mode change has no single step.
+    Every scan must share one mode and scene. A window across a mode change has no single step.
     """
     modes = set(scan_modes)
     if len(modes) != 1:

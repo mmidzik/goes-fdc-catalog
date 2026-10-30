@@ -81,7 +81,7 @@ def test_scan_time_falls_back_to_the_stamp_midpoint():
     good = np.datetime64("2025-01-20T15:12:47", "ns")
     assert virtualize.scan_time(s, good) == good
     assert virtualize.scan_time(s, None) == np.datetime64("2025-01-20T15:12:47.400", "ns")
-    bogus = np.datetime64("1999-12-31T11:43:21", "ns")  # t = -999 s, decoded
+    bogus = np.datetime64("2000-01-01T11:43:21", "ns")  # t = -999 s, decoded
     assert virtualize.scan_time(s, bogus) == np.datetime64("2025-01-20T15:12:47.400", "ns")
 
 

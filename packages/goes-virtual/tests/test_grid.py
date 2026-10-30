@@ -145,3 +145,19 @@ def test_edges_are_the_outer_pixel_edges():
     assert east == pytest.approx(X[-1] * h + STEP * h / 2)
     assert north == pytest.approx(Y[0] * h + STEP * h / 2)
     assert south == pytest.approx(Y[-1] * h - STEP * h / 2)
+
+
+def test_a_box_on_the_disk_but_off_the_cube_is_refused(cube_at):
+    # The west part of the disk does not hold Palisades.
+    from conftest import CHUNK
+
+    west = cube_at("2025-01-08T03:05").isel(x=slice(0, 4 * CHUNK))
+    with pytest.raises(ValueError, match="not inside the grid"):
+        grid.crop_window(west, PALISADES)
+
+
+def test_a_box_across_the_antimeridian_stays_narrow(cube_at):
+    from conftest import CHUNK
+
+    window = grid.crop_window(cube_at("2025-01-08T03:05"), (178.0, 50.0, -178.0, 52.0))
+    assert window["x"].stop - window["x"].start <= 2 * CHUNK

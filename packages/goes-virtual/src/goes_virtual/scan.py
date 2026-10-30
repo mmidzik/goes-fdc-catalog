@@ -8,7 +8,7 @@ from datetime import UTC, datetime, timedelta
 
 # OR_ABI-L2-FDCC-M6_G18_s20250080301172_e20250080303545_c20250080304133.nc
 # OR_ABI-L2-CMIPF-M6C13_G18_s20250080300208_e20250080309516_c20250080309590.nc
-# The prefix product has no mesoscale number: ABI-L2-FDCM holds ABI-L2-FDCM1 and ABI-L2-FDCM2.
+# The prefix product has no mesoscale number. ABI-L2-FDCM holds ABI-L2-FDCM1 and ABI-L2-FDCM2.
 KEY_RE = re.compile(
     r"^(?P<prefix>ABI-L(?:1b|2)-[A-Za-z0-9]+)/\d{4}/\d{3}/\d{2}/"
     r"OR_(?P<product>ABI-L(?:1b|2)-[A-Za-z0-9]+)-(?P<mode>M\d)(?:C(?P<band>\d{2}))?_"
@@ -17,7 +17,7 @@ KEY_RE = re.compile(
 BUCKETS = {"G16": "noaa-goes16", "G17": "noaa-goes17", "G18": "noaa-goes18", "G19": "noaa-goes19"}
 
 
-def _require_utc(name: str, value: datetime) -> None:
+def require_utc(name: str, value: datetime) -> None:
     if value.tzinfo is None or value.utcoffset() != timedelta(0):
         raise ValueError(f"{name} must be a timezone-aware UTC datetime, not {value!r}")
 
@@ -31,8 +31,8 @@ class ScanRef:
     end: datetime
 
     def __post_init__(self) -> None:
-        _require_utc("start", self.start)
-        _require_utc("end", self.end)
+        require_utc("start", self.start)
+        require_utc("end", self.end)
 
 
 @dataclass(frozen=True)

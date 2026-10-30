@@ -2,13 +2,20 @@
 
 from __future__ import annotations
 
+import logging
+import re
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 
 import obstore
 from obstore.store import S3Store
 
-from .scan import BUCKETS, ScanKey, parse_key
+from .scan import BUCKETS, ScanKey, parse_key, require_utc
+
+# A mesoscale product names its domain, such as ABI-L2-FDCM1. Its prefix does not.
+MESO_RE = re.compile(r"^(?P<prefix>.+M)[12]$")
+
+log = logging.getLogger(__name__)
 
 
 def hour_prefixes(product: str, start: datetime, end: datetime) -> list[str]:
@@ -27,26 +34,56 @@ def bucket_store(satellite: str) -> S3Store:
 
 
 def list_scans(
-    satellite: str, product: str, start: datetime, end: datetime, workers: int = 24
+    satellite: str,
+    product: str,
+    start: datetime,
+    end: datetime,
+    band: int | None = None,
+    workers: int = 24,
 ) -> list[ScanKey]:
     """List scans whose start time falls in [start, end), sorted by start time.
 
-    ``product`` is the prefix product, such as ``ABI-L2-FDCC``. One list call
-    goes to each hour prefix. The calls run on a thread pool, because a day is
-    24 round trips to us-east-1.
+    ``product`` is the product in the file name, such as ``ABI-L2-FDCC`` or
+    ``ABI-L2-FDCM1``. ``band`` selects one channel of a multi-band product.
+    The result holds one product and one band. A prefix that holds more
+    raises ValueError. One list call goes to each hour prefix. The calls run
+    on a thread pool, because a day is 24 round trips to us-east-1.
     """
+    require_utc("start", start)
+    require_utc("end", end)
+    meso = MESO_RE.match(product)
+    prefix = meso["prefix"] if meso else product
     store = bucket_store(satellite)
 
-    def one(prefix: str) -> list[ScanKey]:
+    def wanted(scan: ScanKey) -> bool:
+        if meso and scan.product != product:
+            return False
+        if band is not None and scan.band != band:
+            return False
+        return start <= scan.start < end
+
+    def one(hour: str) -> list[ScanKey]:
         found = []
-        for batch in obstore.list(store, prefix=prefix):
+        for batch in obstore.list(store, prefix=hour):
             for obj in batch:
-                if obj["path"].endswith(".nc"):
+                if not obj["path"].endswith(".nc"):
+                    continue
+                try:
                     scan = parse_key(obj["path"])
-                    if start <= scan.start < end:
-                        found.append(scan)
+                except ValueError:
+                    log.warning("%s: not a GOES ABI key, skipping", obj["path"])
+                    continue
+                if wanted(scan):
+                    found.append(scan)
         return found
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
-        parts = pool.map(one, hour_prefixes(product, start, end))
-    return sorted((s for part in parts for s in part), key=lambda s: s.start)
+        parts = pool.map(one, hour_prefixes(prefix, start, end))
+    scans = sorted((s for part in parts for s in part), key=lambda s: s.start)
+    kinds = sorted({(s.product, s.band) for s in scans}, key=str)
+    if len(kinds) > 1:
+        raise ValueError(
+            f"{prefix} holds several products or bands in this window: {kinds}. "
+            "Name the mesoscale domain in product, or pass band."
+        )
+    return scans

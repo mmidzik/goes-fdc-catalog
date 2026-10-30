@@ -30,7 +30,7 @@ def test_two_full_disk_scans_read_back_as_the_raw_file(tmp_path):
     window = grid.crop_window(cube.dataset, PALISADES)
     site = grid.crop(cube.dataset, PALISADES)
 
-    repo = store.open_repo(icechunk.local_filesystem_storage(str(tmp_path / "repo")), PREFIX)
+    repo = store.open_repo(icechunk.local_filesystem_storage(str(tmp_path / "repo")), PREFIX, None)
     store.write(repo, site, "two scans")
     stored = store.open_cube(repo)
     assert stored is not None

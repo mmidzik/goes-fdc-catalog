@@ -33,14 +33,15 @@ TIME_ENCODING = {
 
 
 def repo_config(
-    prefix: str, split_time_steps: int | None = None
+    prefix: str, split_time_steps: int | None
 ) -> tuple[icechunk.RepositoryConfig, dict[str, Any]]:
     """The repository config and the virtual chunk credentials for scans under ``prefix``.
 
     NOAA buckets read anonymously over https, so the credential is the
     HttpAccess sentinel. ``split_time_steps`` sets the time steps per manifest.
     Without splitting, every append rewrites the whole manifest of each array,
-    so the repository grows with the square of the number of commits.
+    so the repository grows with the square of the number of commits. The
+    argument has no default. Pass None only for a store with few appends.
     """
     prefix = prefix if prefix.endswith("/") else prefix + "/"
     cfg = icechunk.RepositoryConfig.default()
@@ -62,9 +63,9 @@ def repo_config(
 
 
 def open_repo(
-    storage: icechunk.Storage, prefix: str, split_time_steps: int | None = None
+    storage: icechunk.Storage, prefix: str, split_time_steps: int | None
 ) -> icechunk.Repository:
-    """Open the repository in ``storage``, or create it."""
+    """Open the repository in ``storage``, or create it. See repo_config for the split."""
     cfg, credentials = repo_config(prefix, split_time_steps)
     return icechunk.Repository.open_or_create(
         storage, config=cfg, authorize_virtual_chunk_access=credentials

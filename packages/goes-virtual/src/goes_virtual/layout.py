@@ -63,16 +63,22 @@ class Layout:
         )
 
 
-def layout(ds: xr.Dataset) -> Layout:
-    """The layout of one file, from its dimensions and CF and ACDD attributes."""
-    pixel = tuple(sorted(str(n) for n, v in ds.data_vars.items() if v.dims == PIXEL_DIMS))
-    if not pixel:
-        raise ValueError("the file has no variable on the y and x grid")
+def grid_mapping(ds: xr.Dataset, pixel: Sequence[str]) -> str:
+    """The variable that every pixel variable names in `grid_mapping`."""
     mappings = {ds[n].attrs.get("grid_mapping") for n in pixel}
     if len(mappings) != 1 or None in mappings:
         raise ValueError(
             f"the pixel variables do not share one grid_mapping: {sorted(map(str, mappings))}"
         )
+    return str(mappings.pop())
+
+
+def layout(ds: xr.Dataset) -> Layout:
+    """The layout of one file, from its dimensions and CF and ACDD attributes."""
+    pixel = tuple(sorted(str(n) for n, v in ds.data_vars.items() if v.dims == PIXEL_DIMS))
+    if not pixel:
+        raise ValueError("the file has no variable on the y and x grid")
+    projection = grid_mapping(ds, pixel)
     scalars = tuple(
         sorted(str(n) for n, v in ds.variables.items() if v.ndim == 0 and "cell_methods" in v.attrs)
     )
@@ -80,6 +86,6 @@ def layout(ds: xr.Dataset) -> Layout:
     return Layout(
         pixel=pixel,
         scalars=scalars,
-        projection=str(mappings.pop()),
+        projection=projection,
         extent=extents[0] if extents else None,
     )

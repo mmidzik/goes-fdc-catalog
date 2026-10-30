@@ -28,7 +28,7 @@ KEEP_COORDS = {"time", "x", "y"}
 # that scan's own summary values, so they are wrong for every other scan.
 PER_SCAN_ATTR_PREFIX = "percent_"
 
-# A scan's ABI scan mode and scene: the file's `timeline_id` and `scene_id`.
+# A scan's ABI scan mode and scene. They are the file's `timeline_id` and `scene_id`.
 ScanMode = tuple[str | None, str | None]
 
 log = logging.getLogger(__name__)
@@ -241,9 +241,11 @@ def virtualize_scan(
     for v in sorted(set(lay.kept) - set(present)):
         log.warning("%s: no %s variable, filling it", scan.url, v)
     out = ds[present].drop_vars(["t"], errors="ignore").expand_dims(time=[t])
-    for aux in (lay.projection, lay.extent):
-        if aux and aux in ds:
-            out[aux] = ds[aux]
+    if lay.projection not in ds:
+        raise ValueError(f"{scan.url}: no {lay.projection} variable, so the scan has no CRS")
+    out[lay.projection] = ds[lay.projection]
+    if lay.extent and lay.extent in ds:
+        out[lay.extent] = ds[lay.extent]
     for name in out.variables:
         _clean_attrs(out[name].variable)
     mode: ScanMode = (ds.attrs.get("timeline_id"), ds.attrs.get("scene_id"))
