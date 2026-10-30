@@ -48,9 +48,14 @@ class VirtualScan:
 
 @dataclass(frozen=True)
 class VirtualCube:
-    """Scans stacked along `time`. ``scan_modes`` follows the order of `time`."""
+    """Scans stacked along `time`.
+
+    ``scans`` holds the scans in the cube. It leaves out each aborted scan that
+    build_cube dropped. ``scans`` and ``scan_modes`` follow the order of `time`.
+    """
 
     dataset: xr.Dataset
+    scans: list[ScanRef]
     scan_modes: list[ScanMode]
 
 
@@ -333,4 +338,4 @@ def build_cube(
     # The other coordinates are per-scan scalars (angles, bounds). Keep the cube to
     # its three dimension coordinates.
     cube = cube.drop_vars([c for c in cube.coords if c not in KEEP_COORDS])
-    return VirtualCube(cube, [r.mode for _, r in usable])
+    return VirtualCube(cube, kept_scans, [r.mode for _, r in usable])

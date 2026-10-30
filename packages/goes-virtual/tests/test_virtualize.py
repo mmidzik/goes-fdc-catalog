@@ -229,3 +229,27 @@ def test_keep_refuses_unknown_names_and_no_pixel_variable():
         lay.select(["Power", "Radiance"])
     with pytest.raises(ValueError, match="no pixel variable"):
         lay.select(["maximum_fire_radiative_power"])
+
+
+def test_the_cube_lists_only_the_scans_it_kept(monkeypatch):
+    t0 = datetime(2025, 1, 8, 7, 1, tzinfo=UTC)
+    t1 = datetime(2025, 1, 8, 7, 6, tzinfo=UTC)
+    complete = scan(t0, t0.replace(minute=3))
+    aborted = scan(t1, t1, URL.replace("f.nc", "g.nc"))
+    lay = Layout(pixel=("Mask",), scalars=(), projection="proj", extent=None)
+    monkeypatch.setattr(virtualize, "read_layout", lambda s, registry: lay)
+
+    def one(s, registry, lay):
+        if s is aborted:
+            return None
+        part = _virtual("Mask", np.datetime64("2025-01-08T07:02", "ns"))
+        part.attrs = {"grid": "same"}
+        return virtualize.VirtualScan(part, ("ABI Mode 6", "CONUS"))
+
+    monkeypatch.setattr(virtualize, "virtualize_scan", one)
+    monkeypatch.setattr(virtualize, "dataset_signature", lambda ds: {})
+    cube = virtualize.build_cube([complete, aborted])
+    assert cube is not None
+    assert cube.scans == [complete]
+    assert cube.scan_modes == [("ABI Mode 6", "CONUS")]
+    assert cube.dataset.sizes["time"] == 1

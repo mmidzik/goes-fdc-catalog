@@ -26,6 +26,7 @@ def test_two_full_disk_scans_read_back_as_the_raw_file(tmp_path):
 
     cube = virtualize.build_cube(scans, keep=["Power", "Mask"])
     assert cube is not None
+    assert cube.scans == scans
     assert cadence.time_step(cube.scan_modes) == "PT10M"
     window = grid.crop_window(cube.dataset, PALISADES)
     site = grid.crop(cube.dataset, PALISADES)
