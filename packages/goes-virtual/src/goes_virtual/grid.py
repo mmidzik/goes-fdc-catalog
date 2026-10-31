@@ -116,6 +116,32 @@ def cube_crs(cube: xr.Dataset) -> pyproj.CRS:
     return crs(cube[projection_name(cube)].attrs)
 
 
+def projected(cube: xr.Dataset) -> xr.Dataset:
+    """The cube with `x` and `y` in metres on the projection plane, ready to reproject.
+
+    Scan angle times the satellite height gives metres. The grid mapping
+    variable gains `crs_wkt`, so CF readers and rioxarray read the CRS from
+    it. The values of the pixel variables do not change.
+    """
+    name = projection_name(cube)
+    projection = cube[name]
+    height = float(projection.attrs["perspective_point_height"])
+    coords = {
+        axis: (
+            axis,
+            cube[axis].values.astype("float64") * height,
+            {
+                "units": "m",
+                "standard_name": f"projection_{axis}_coordinate",
+                "axis": axis.upper(),
+            },
+        )
+        for axis in PIXEL_DIMS
+    }
+    wkt = crs(projection.attrs).to_wkt("WKT2_2019")
+    return cube.assign_coords(coords).assign({name: projection.assign_attrs(crs_wkt=wkt)})
+
+
 def _source_chunks(cube: xr.Dataset) -> dict[str, int]:
     """Chunk size along `y` and `x` of the source files, as the manifest records it.
 
