@@ -20,6 +20,7 @@ import rioxarray  # noqa: F401  (adds the .rio accessor)
 import xarray as xr
 import zarr
 from affine import Affine
+from goes_virtual import grid
 from rasterio.enums import Resampling
 from zarr_cm import proj as zcm_proj
 from zarr_cm import spatial as zcm_spatial
@@ -53,23 +54,18 @@ def open_cube(asset: pystac.Asset) -> xr.Dataset:
     return xr.open_zarr(
         repo.readonly_session(branch="main").store,
         consolidated=asset.extra_fields["zarr:consolidated"],
-        decode_coords="all",
     )
 
 
 def fire_power(asset: pystac.Asset) -> xr.DataArray:
     """Fire radiative power in BOX on the cube's own grid, in projected metres. Lazy."""
-    grid_crs = pyproj.CRS.from_wkt(asset.extra_fields["proj:wkt2"])
-    # x and y are scan angles in radians. The CRS unit is scan angle times satellite height.
-    height = grid_crs.to_cf()["perspective_point_height"]
+    cube = grid.projected(open_cube(asset))
+    grid_crs = grid.cube_crs(cube)
     to_grid = pyproj.Transformer.from_crs("EPSG:4326", grid_crs, always_xy=True)
     xs, ys = to_grid.transform([WEST, EAST, EAST, WEST], [SOUTH, SOUTH, NORTH, NORTH])
-    xs, ys = [v / height for v in xs], [v / height for v in ys]
-    power = open_cube(asset)["Power"]
     # y runs north to south on the fixed grid, so its slice is reversed.
-    power = power.sel(x=slice(min(xs), max(xs)), y=slice(max(ys), min(ys)))
-    power = power.reset_coords(drop=True).assign_coords(x=power.x * height, y=power.y * height)
-    return power.rio.write_crs(grid_crs)
+    power = cube["Power"].sel(x=slice(min(xs), max(xs)), y=slice(max(ys), min(ys)))
+    return power.reset_coords(drop=True).rio.write_crs(grid_crs)
 
 
 def to_lonlat(power: xr.DataArray) -> xr.Dataset:

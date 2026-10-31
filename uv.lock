@@ -726,7 +726,7 @@ viz = [{ name = "matplotlib", specifier = ">=3.11.2" }]
 
 [[package]]
 name = "goes-virtual"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "packages/goes-virtual" }
 dependencies = [
     { name = "h5netcdf" },
