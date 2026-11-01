@@ -161,3 +161,26 @@ def test_a_box_across_the_antimeridian_stays_narrow(cube_at):
 
     window = grid.crop_window(cube_at("2025-01-08T03:05"), (178.0, 50.0, -178.0, 52.0))
     assert window["x"].stop - window["x"].start <= 2 * CHUNK
+
+
+def test_projected_puts_x_and_y_in_metres_and_the_crs_in_the_grid_mapping(cube_at):
+    cube = grid.crop(cube_at("2025-01-08T03:05"), PALISADES)
+    projected = grid.projected(cube)
+    h = PROJECTION["perspective_point_height"]
+    np.testing.assert_allclose(projected["x"].values, cube["x"].values * h)
+    np.testing.assert_allclose(projected["y"].values, cube["y"].values * h)
+    assert projected["x"].attrs["units"] == "m"
+    wkt = projected["goes_imager_projection"].attrs["crs_wkt"]
+    assert pyproj.CRS.from_wkt(wkt) == grid.cube_crs(cube)
+    assert projected["Power"].attrs["grid_mapping"] == "goes_imager_projection"
+    # The input keeps its scan angles and its grid mapping without crs_wkt.
+    assert "crs_wkt" not in cube["goes_imager_projection"].attrs
+    assert cube["x"].values.max() < 1
+
+
+def test_projected_pixel_centres_match_the_transform(cube_at):
+    cube = grid.crop(cube_at("2025-01-08T03:05"), PALISADES)
+    projected = grid.projected(cube)
+    a, _, c, _, e, f = cube.attrs["spatial:transform"]
+    assert projected["x"].values[0] == pytest.approx(c + a / 2)
+    assert projected["y"].values[0] == pytest.approx(f + e / 2)
